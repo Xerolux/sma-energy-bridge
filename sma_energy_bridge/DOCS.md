@@ -1,10 +1,52 @@
 # SMA Energy Bridge
 
-Install from the Xerolux SMA Energy Bridge app repository. See the repository
-README for the option reference and an optional native Modbus sensor package.
+Bridges an external grid-connection-point energy meter into the SMA Speedwire
+Energy Meter multicast protocol, so SMA devices can display meter data from a
+non-SMA source. First supported source: SolarEdge SunSpec meters, read
+strictly read-only (Modbus function 03) through an existing Modbus TCP proxy
+such as ModBridge. For display/testing only - never for mandatory export
+control. Full design, risks and test plan: [repository README] and
+`KONZEPT_UND_UMSETZUNG.md`.
 
-1. Set the Modbus proxy host, port, unit ID and SunSpec meter model address.
-2. Leave transmission disabled and start the app. Compare the signed grid
-   power and both counters in the logs against your reference meter.
-3. Choose a unique meter serial. Keep transmission disabled on systems that use
-   the SMA meter for grid or battery control until the topology is validated.
+## How it works
+
+1. The app polls the SunSpec meter block (default base 40188) every
+   `poll_interval_seconds` and validates the meter DID (201..204), scale
+   factors, plausibility limits and counter monotonicity.
+2. It converts power and both energy counters to the SMA Energy Meter
+   Speedwire/OBIS telegram (multicast 239.12.255.254:9522, SUSy 270).
+3. With `transmit_enabled: false` (default) everything runs in dry-run mode:
+   values are read, validated and logged, but no telegram leaves the host.
+
+## Setup
+
+1. Configure the Modbus proxy host/port, unit ID and meter model base.
+   The data source must be the complete grid connection point meter, not only
+   inverter PV power.
+2. Keep `transmit_enabled: false` and start the app. The log prints
+   `grid=+W (+=import)` plus both counters every 30 seconds.
+3. Verify the logged values against your reference meter - either manually or
+   with `scripts/verify_against_ha.py` from the repository (compares the exact
+   app read path against Home Assistant reference sensors and reports
+   PASS/FAIL).
+4. After a successful verification, enable transmission and check whether the
+   SMA receiver detects the virtual meter (serial number from the options).
+   Reception depends on the SMA device and firmware; a syntactically correct
+   telegram alone does not guarantee detection.
+
+## Verified reference installation (2026-11-22)
+
+SolarEdge SE10K with SunSpec Meter 1 (DID 203, power_sf -2, energy_sf -1)
+behind a ModBridge proxy. 12/12 verification samples matched the Home
+Assistant reference: worst counter drift 0.001 kWh, power sign agreement in
+both import and export direction. Configuration used:
+`power_sign: export_positive`, `swap_counters: false`.
+
+## Safety notes
+
+- The Modbus source is only read; no values are ever written.
+- The app stops itself when an energy counter decreases (reset/wrap) and
+  requires a manual restart.
+- Do not use the emulated meter as the only measurement signal for feed-in
+  limitation or zero-export control; SMA requires much faster measurement
+  intervals for such control loops.

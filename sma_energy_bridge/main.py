@@ -11,6 +11,7 @@ import argparse
 import json
 import logging
 import math
+import os
 import socket
 import struct
 import time
@@ -178,7 +179,10 @@ def main() -> None:
     parser.add_argument("--check", action="store_true",
                         help="Read one sample and validate the frame locally")
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    if log_level not in ("DEBUG", "INFO", "WARNING", "ERROR"):
+        log_level = "INFO"
+    logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(message)s")
     config = json.loads(args.options.read_text(encoding="utf-8"))
     validate(config)
     if args.check:
@@ -196,7 +200,8 @@ def main() -> None:
     transmit = config["transmit_enabled"]
     LOG.info("START source=Modbus TCP proxy (%s:%s, unit=%s, model_base=%s); TX=%s; serial=%s",
              config["modbus_host"], config["modbus_port"], config["modbus_unit_id"],
-             config["meter_model_base"], "ENABLED" if transmit else "DRY-RUN", config["meter_serial"])
+             config["meter_model_base"], "ENABLED" if transmit else "DRY-RUN",
+             config["meter_serial"])
     last_good: tuple[float, float, float] | None = None
     last_good_at: float | None = None
     last_counters: tuple[float, float] | None = None
@@ -229,8 +234,10 @@ def main() -> None:
                     sock.sendto(frame, (MULTICAST_GROUP, MULTICAST_PORT))
                 if now >= next_log:
                     power, inc, out = last_good
-                    LOG.info("%s grid=%+.1f W (+=import), import=%.3f kWh, export=%.3f kWh, bytes=%d",
-                             "SENT" if transmit else "DRY-RUN", power, inc, out, len(frame))
+                    LOG.info("%s grid=%+.1f W (+=import), import=%.3f kWh, "
+                             "export=%.3f kWh, bytes=%d",
+                             "SENT" if transmit else "DRY-RUN", power, inc, out,
+                             len(frame))
                     next_log = now + 30
             except (ValueError, OSError, OverflowError) as exc:
                 LOG.warning("Frame not transmitted: %s", exc)

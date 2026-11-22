@@ -1,0 +1,64 @@
+configuration:
+  modbus_host:
+    name: Modbus proxy host
+    description: >-
+      Hostname or IP of the existing Modbus TCP proxy in front of the energy
+      meter. The app never connects to the meter directly.
+  modbus_port:
+    name: Modbus proxy port
+    description: >-
+      Listening port of the proxy, for example 502 or one of its mapped ports.
+  modbus_unit_id:
+    name: Modbus unit ID
+    description: >-
+      Modbus unit ID of the SolarEdge inverter behind the proxy, usually 1.
+  meter_model_base:
+    name: SunSpec meter model base
+    description: >-
+      Base-0 register address of the SunSpec meter block. SolarEdge Meter 1 is
+      40188. The app verifies the meter DID (201..204) before using any value.
+  power_sign:
+    name: Power sign convention
+    description: >-
+      Sign of the raw meter power register. "export_positive" fits the verified
+      SolarEdge reference installation. The log always shows positive = import.
+  swap_counters:
+    name: Swap energy counters
+    description: >-
+      Swap imported and exported energy if the meter orientation requires it.
+      Leave off when both counters already match the reference meter.
+  meter_serial:
+    name: Virtual meter serial
+    description: >-
+      Unique 32-bit serial number of the emulated SMA Energy Meter. Must not
+      collide with a real SMA device in the same network.
+  susy_id:
+    name: SUSy ID
+    description: >-
+      SMA SUSy ID of the emulated meter. 270 is the standard energy meter ID.
+  poll_interval_seconds:
+    name: Poll interval (seconds)
+    description: >-
+      Seconds between two Modbus reads of the meter register block.
+  transmit_interval_seconds:
+    name: Transmit interval (seconds)
+    description: >-
+      Seconds between two Speedwire telegrams. The last fresh value is repeated.
+  stale_after_seconds:
+    name: Stale after (seconds)
+    description: >-
+      After this time without a valid new reading no further telegram is sent.
+  max_abs_power_w:
+    name: Plausibility power limit (W)
+    description: >-
+      Reject readings whose absolute grid power exceeds this limit.
+  multicast_interface:
+    name: Multicast interface IPv4
+    description: >-
+      Local IPv4 address of the network interface facing the SMA inverter.
+      Leave empty on single-NIC hosts.
+  transmit_enabled:
+    name: Enable Speedwire transmission
+    description: >-
+      Keep disabled (dry-run) until the values have been validated against the
+      reference meter. Enabling emits UDP multicast 239.12.255.254:9522.

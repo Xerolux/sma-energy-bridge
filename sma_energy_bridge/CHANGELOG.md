@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.2
+
+- Add `scripts/verify_against_ha.py` to verify live source values against Home
+  Assistant reference sensors (validated 2026-11-22 on the reference
+  installation: counter drift <= 0.001 kWh, power sign confirmed in both
+  directions, DID 203, power_sf -2, energy_sf -1).
+- Add option name translations for the app store (English, German).
+- Add app icon and logo, link the repository URL and set the stage to
+  experimental.
+- Follow the Supervisor `LOG_LEVEL` environment variable.
+- Simplify the native Modbus example: device_class/state_class and linear
+  scale factors pinned at the verified meter replace the template layer.
+
 ## 0.3.1
 
 - Correct the Speedwire group tag header so receivers can parse the meter telegram.

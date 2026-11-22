@@ -1,5 +1,7 @@
 # SMA Energy Bridge (Experimental)
 
+[![Tests](https://github.com/Xerolux/sma-energy-bridge/actions/workflows/tests.yaml/badge.svg)](https://github.com/Xerolux/sma-energy-bridge/actions/workflows/tests.yaml)
+
 First supported source: read-only **SolarEdge SunSpec meter → Modbus TCP proxy → SMA Speedwire Energy Meter multicast**. German technical design and implementation: [KONZEPT_UND_UMSETZUNG.md](KONZEPT_UND_UMSETZUNG.md).
 
 ⚠️ **Experimental, display/test only.** Compatibility with the real `STP8.0-3AV-40` has **not** been verified. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
@@ -38,11 +40,43 @@ The command reads one holding-register block and prints grid power, import and e
 
 Use [the optional package](examples/home-assistant-modbus.yaml) if you want HA entities for the same meter. Enable [Home Assistant packages](https://www.home-assistant.io/docs/configuration/packages/), copy the package into your packages directory, and set `sma_bridge_modbus_host` in `secrets.yaml`. The example uses SolarEdge Meter 1, TCP port 502 and unit ID 1. Check for existing SolarEdge entities before enabling additional polling. Keep the raw entity IDs used by the templates and select the two kWh entities as grid consumption and return to grid in the Energy dashboard. The native package publishes HA entities. The app handles Speedwire transmission independently.
 
+## Live verification
+
+The source path was verified on 2026-11-22 against a live installation
+(SolarEdge SE10K, SunSpec Meter 1 with DID 203, power scale factor −2, energy
+scale factor −1, behind a ModBridge proxy, reference sensors from the
+SolarEdge Modbus integration in Home Assistant 2026.11):
+
+| Check | Result |
+|---|---|
+| Meter DID | 203 (validated 201..204) |
+| Energy counters vs. reference | worst drift 0.001 kWh over 12/12 samples |
+| Power sign (import direction) | matches reference (positive = import) |
+| Power sign (export direction) | matches reference (negative = export) |
+| Counter assignment | import/export not swapped (`swap_counters: false`) |
+
+Reproduce or repeat this on your own installation with
+[`scripts/verify_against_ha.py`](scripts/verify_against_ha.py). It samples the
+meter through the proxy with the exact app read path and the Home Assistant
+reference sensors at the same time and reports PASS/FAIL:
+
+```bash
+HA_URL=http://ha.local:8123 HA_TOKEN=... python scripts/verify_against_ha.py \
+    --options options.json --ha-power-entity sensor.meter_1_leistung \
+    --ha-import-entity sensor.meter_1_bezogene_energie \
+    --ha-export-entity sensor.meter_1_eingespeiste_energie
+```
+
+Hardware acceptance at the SMA receiver (roadmap 0.3.0) remains open; keep
+`transmit_enabled: false` until it is done on site.
+
 ## Tests
 
 ```bash
 python -m unittest discover -s tests -v
-python -m py_compile sma_energy_bridge/main.py
+python -m py_compile sma_energy_bridge/main.py scripts/verify_against_ha.py
+ruff check .        # pip install ruff
+python scripts/make_icons.py   # regenerate icon.png / logo.png
 ```
 
 **Architecture:** The initial provider is SolarEdge SunSpec via an existing Modbus TCP proxy; other energy-meter providers are planned and not yet implemented.

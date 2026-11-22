@@ -3,3 +3,8 @@ __pycache__/
 .pytest_cache/
 .env
 .env.*
+
+# Local check configurations containing private network details
+live_check_options.json
+options.json
+

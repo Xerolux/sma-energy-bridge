@@ -134,14 +134,22 @@ sma-energy-bridge/
 ├── repository.yaml
 ├── README.md
 ├── KONZEPT_UND_UMSETZUNG.md
+├── ruff.toml
 ├── sma_energy_bridge/
 │   ├── config.yaml          # Supervisor-Konfiguration, Optionen, Validierung
 │   ├── Dockerfile           # Container/Startskript
-│   └── main.py              # Modbus-TCP-Client + SunSpec + SMA Speedwire
+│   ├── main.py              # Modbus-TCP-Client + SunSpec + SMA Speedwire
+│   ├── icon.png / logo.png  # Store-Branding (skriptgeneriert)
+│   └── translations/        # Optionsnamen EN/DE für den Store
+├── examples/
+│   └── home-assistant-modbus.yaml  # natives HA-Modbus-Paket (optional)
+├── scripts/
+│   ├── verify_against_ha.py # Live-Abgleich Bridge-Quelle gegen HA-Referenz
+│   └── make_icons.py        # regeneriert icon.png / logo.png
 ├── tests/
 │   └── test_protocol.py     # lokale Protokoll- und Mapping-Tests
 └── .github/workflows/
-    └── tests.yaml           # Tests bei Push und Pull Request
+    └── tests.yaml           # Tests, Lint und Image-Build bei Push/PR
 ```
 
 `main.py` implementiert:
@@ -215,14 +223,14 @@ python -m py_compile sma_energy_bridge/main.py
 
 **Muss:** Alle Tests bestehen, keine Python-Syntaxfehler, keine Schreib-Funktionscodes an Modbus.
 
-### B. Read-only-Test über Proxy (`transmit_enabled: false`)
+### B. Read-only-Test über Proxy (`transmit_enabled: false`) — **22.11.2026 an der Referenzanlage erfüllt**
 
-- [ ] Modbus-Proxy erreichbar; andere Modbus-Clients laufen weiter ohne Timeout-Anstieg.
-- [ ] `C_SunSpec_DID` liegt bei 201–204; beim falschen DID Zählerposition anpassen.
-- [ ] Bei ausgeschalteter/geringer PV-Produktion und eindeutigem Hausverbrauch wird **Netzbezug positiv** angezeigt.
-- [ ] Bei eindeutiger Überschusseinspeisung wird **Netzleistung negativ** angezeigt.
-- [ ] Bezugs- und Einspeisezähler sind in kWh plausibel, steigen monoton und werden nicht getauscht.
-- [ ] Bei Trennung des Proxys wird spätestens nach dem `stale_after_seconds`-Fenster nicht mehr gesendet.
+- [x] Modbus-Proxy erreichbar; andere Modbus-Clients laufen weiter ohne Timeout-Anstieg. *(ModBridge-Proxy, parallel laufende SolarEdge-Modbus-Integration in HA ohne Störung)*
+- [x] `C_SunSpec_DID` liegt bei 201–204; beim falschen DID Zählerposition anpassen. *(DID = 203, Meter 1 bei Basis 40188)*
+- [x] Bei ausgeschalteter/geringer PV-Produktion und eindeutigem Hausverbrauch wird **Netzbezug positiv** angezeigt. *(z. B. 09:49:16 UTC-Log: grid=+1271.5 W, bzw. Check 11:16: grid=+103.4 W)*
+- [x] Bei eindeutiger Überschusseinspeisung wird **Netzleistung negativ** angezeigt. *(z. B. 10:24:29 UTC-Log: grid=−182.1 W)*
+- [x] Bezugs- und Einspeisezähler sind in kWh plausibel, steigen monoton und werden nicht getauscht. *(12/12 Verifikationssamples, maximaler Zählerdrift gegen die HA-Referenz 0,001 kWh; `scripts/verify_against_ha.py`)*
+- [ ] Bei Trennung des Proxys wird spätestens nach dem `stale_after_seconds`-Fenster nicht mehr gesendet. *(noch nicht getestet)*
 
 ### C. SMA-Kompatibilitätstest (`transmit_enabled: true`)
 
@@ -262,7 +270,7 @@ python -m py_compile sma_energy_bridge/main.py
 | Version | Meilenstein | Abschlusskriterium |
 |---|---|---|
 | `0.2.0` | SunSpec via Modbus-Proxy, SMA-Summendaten, Dry Run, Unit-Tests | **Quellcode und Offline-Tests vorhanden** |
-| `0.2.x` | Realdaten-Test am vorhandenen SolarEdge-Proxy | DID, Leistungsvorzeichen und kWh verifiziert |
+| `0.2.x` | Realdaten-Test am vorhandenen SolarEdge-Proxy | DID, Leistungsvorzeichen und kWh verifiziert — **abgeschlossen 22.11.2026** |
 | `0.3.0` | SMA-Erkennung und Telegramminhalt mit Wireshark bestätigen | Werte im STP8.0-Webinterface sichtbar |
 | `0.4.0` | Optional Phasenkanäle, Geräteerkennung, Diagnostik/Health-Sensor | Vergleich über alle drei Phasen |
 | `0.5.0` | Persistenz nach Reset/Wrap, Konfigurationstests, zuverlässiger Multicast-Betrieb | 24–72 h Ausfall-/Neustarttest bestanden |
@@ -278,4 +286,4 @@ python -m py_compile sma_energy_bridge/main.py
 
 ---
 
-**Ist-Zustand:** Eine lauffähig strukturierte **experimentelle Repository-Vorlage** inklusive Python-MVP und automatisierten Offline-Tests wurde erstellt. **Nicht behauptet** werden: echter Test am Modbus-Proxy, Test der SMA-Kompatibilität, Installation in Home Assistant oder Veröffentlichung auf GitHub. Die voreingestellte Netzübertragung ist bewusst abgeschaltet.
+**Ist-Zustand (22.11.2026):** Der Meilenstein `0.2.x` ist abgeschlossen: Die App läuft als Supervisor-App auf der Referenzanlage (Home Assistant 2026.11.2) im Dry-Run und liest den SolarEdge-Netzzähler über den vorhandenen ModBridge-Proxy. Quellwerte wurden live gegen die Home-Assistant-Referenz verifiziert (12/12 Samples, Zählerdrift ≤ 0,001 kWh, Vorzeichen in beide Richtungen bestätigt, `scripts/verify_against_ha.py`). **Weiterhin offen:** Hardware-Abnahme am SMA-Empfänger (Roadmap `0.3.0`), Staleness-Test bei Proxy-Trennung und Zähler-Rollover-Behandlung. Die voreingestellte Netzübertragung bleibt bewusst abgeschaltet.

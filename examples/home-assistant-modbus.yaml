@@ -1,101 +1,88 @@
-# Optional HA package for the verified SolarEdge SunSpec Meter 1 layout.
-# SolarEdge raw power is export-positive at the verified meter.
+# Optional native Home Assistant Modbus sensors for the verified SolarEdge
+# SunSpec Meter 1 layout (register base 40188, unit ID 1 behind a Modbus TCP
+# proxy such as ModBridge).
+#
+# Verified live on 2026-11-22 against the reference installation:
+#   C_SunSpec_DID = 203, power scale factor = -2, energy scale factor = -1.
+# The `scale` values below assume exactly these factors. After setup check the
+# three guard sensors: DID must read 201..204 and both scale factors must match
+# the scales used here, otherwise adjust `scale` for your meter.
+#
+# The rewritten Home Assistant Modbus integration supports device_class,
+# state_class, units and a linear scale/offset directly on the sensor, so no
+# template layer is needed. The negative power scale normalizes the SolarEdge
+# export-positive sign convention to "positive = grid import".
+#
+# Enable Home Assistant packages
+# (https://www.home-assistant.io/docs/configuration/packages/), copy this file
+# into your packages directory and set `sma_bridge_modbus_host` in secrets.yaml.
+# Check for existing SolarEdge entities before enabling additional polling.
+# Select the two kWh sensors as grid consumption and return to grid in the
+# Energy dashboard. The app handles Speedwire transmission independently.
+
 modbus:
   - name: sma_bridge_sunspec
     type: tcp
     host: !secret sma_bridge_modbus_host
     port: 502
+    delay: 3
     sensors:
-      - name: SMA Bridge Model
-        unique_id: sma_bridge_model
+      # --- guard sensors: verify before trusting the scaled sensors ---
+      - name: SMA Bridge Meter DID
+        unique_id: sma_bridge_meter_did
         slave: 1
         address: 40188
         input_type: holding
         data_type: uint16
-        scan_interval: 10
-      - name: SMA Bridge Power Raw
-        unique_id: sma_bridge_power_raw
-        slave: 1
-        address: 40206
-        input_type: holding
-        data_type: int16
-        scan_interval: 10
-      - name: SMA Bridge Power Scale
-        unique_id: sma_bridge_power_scale
+        scan_interval: 60
+      - name: SMA Bridge Power Scale Factor
+        unique_id: sma_bridge_power_sf
         slave: 1
         address: 40210
         input_type: holding
         data_type: int16
-        scan_interval: 10
-      - name: SMA Bridge Import Raw
-        unique_id: sma_bridge_import_raw
-        slave: 1
-        address: 40234
-        input_type: holding
-        data_type: uint32
-        scan_interval: 10
-      - name: SMA Bridge Export Raw
-        unique_id: sma_bridge_export_raw
-        slave: 1
-        address: 40226
-        input_type: holding
-        data_type: uint32
-        scan_interval: 10
-      - name: SMA Bridge Energy Scale
-        unique_id: sma_bridge_energy_scale
+        scan_interval: 60
+      - name: SMA Bridge Energy Scale Factor
+        unique_id: sma_bridge_energy_sf
         slave: 1
         address: 40242
         input_type: holding
         data_type: int16
-        scan_interval: 10
-
-template:
-  - sensor:
+        scan_interval: 60
+      # --- physical values (scale factors pinned at the verified meter) ---
       - name: SMA Bridge Grid Power
         unique_id: sma_bridge_grid_power
+        slave: 1
+        address: 40206
+        input_type: holding
+        data_type: int16
+        scale: -0.01          # power_sf = -2, negative -> positive = import
+        precision: 2
         device_class: power
         state_class: measurement
         unit_of_measurement: W
-        availability: >-
-          {% set raw = states('sensor.sma_bridge_power_raw') | int(none) %}
-          {% set sf = states('sensor.sma_bridge_power_scale') | int(none) %}
-          {{ states('sensor.sma_bridge_model') | int(0) in [201, 202, 203, 204]
-              and raw is not none and raw != -32768
-              and sf is not none and -6 <= sf <= 6 }}
-        state: >-
-          {% set raw = states('sensor.sma_bridge_power_raw') | int(none) %}
-          {% set sf = states('sensor.sma_bridge_power_scale') | int(none) %}
-          {{ (-raw * 10 ** sf) | round(6) if raw is not none and sf is not none
-              and -6 <= sf <= 6 and raw != -32768 else none }}
+        scan_interval: 10
       - name: SMA Bridge Grid Import
         unique_id: sma_bridge_grid_import
+        slave: 1
+        address: 40234
+        input_type: holding
+        data_type: uint32     # big-endian, matches the SolarEdge register order
+        scale: 0.0001         # energy_sf = -1: raw counts of 0.1 Wh -> kWh
+        precision: 3
         device_class: energy
         state_class: total_increasing
         unit_of_measurement: kWh
-        availability: >-
-          {% set raw = states('sensor.sma_bridge_import_raw') | int(none) %}
-          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
-          {{ states('sensor.sma_bridge_model') | int(0) in [201, 202, 203, 204]
-              and raw is not none and raw != 4294967295
-              and sf is not none and -6 <= sf <= 6 }}
-        state: >-
-          {% set raw = states('sensor.sma_bridge_import_raw') | int(none) %}
-          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
-          {{ (raw * 10 ** sf / 1000) | round(6) if raw is not none and sf is not none
-              and -6 <= sf <= 6 and raw != 4294967295 else none }}
+        scan_interval: 10
       - name: SMA Bridge Grid Export
         unique_id: sma_bridge_grid_export
+        slave: 1
+        address: 40226
+        input_type: holding
+        data_type: uint32
+        scale: 0.0001
+        precision: 3
         device_class: energy
         state_class: total_increasing
         unit_of_measurement: kWh
-        availability: >-
-          {% set raw = states('sensor.sma_bridge_export_raw') | int(none) %}
-          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
-          {{ states('sensor.sma_bridge_model') | int(0) in [201, 202, 203, 204]
-              and raw is not none and raw != 4294967295
-              and sf is not none and -6 <= sf <= 6 }}
-        state: >-
-          {% set raw = states('sensor.sma_bridge_export_raw') | int(none) %}
-          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
-          {{ (raw * 10 ** sf / 1000) | round(6) if raw is not none and sf is not none
-              and -6 <= sf <= 6 and raw != 4294967295 else none }}
+        scan_interval: 10

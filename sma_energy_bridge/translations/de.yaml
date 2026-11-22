@@ -1,0 +1,65 @@
+configuration:
+  modbus_host:
+    name: Modbus-Proxy-Host
+    description: >-
+      Hostname oder IP des vorhandenen Modbus-TCP-Proxys vor dem Energiezähler.
+      Die App verbindet sich nie direkt mit dem Zähler.
+  modbus_port:
+    name: Modbus-Proxy-Port
+    description: >-
+      Listening-Port des Proxys, zum Beispiel 502 oder einer seiner gemappten Ports.
+  modbus_unit_id:
+    name: Modbus-Unit-ID
+    description: >-
+      Modbus-Unit-ID des SolarEdge-Wechselrichters hinter dem Proxy, üblicherweise 1.
+  meter_model_base:
+    name: SunSpec-Zähler-Basisadresse
+    description: >-
+      Base-0-Registeradresse des SunSpec-Zählerblocks. SolarEdge Meter 1 liegt
+      bei 40188. Die App prüft die Zähler-DID (201..204), bevor Werte verwendet werden.
+  power_sign:
+    name: Vorzeichenkonvention Leistung
+    description: >-
+      Vorzeichen des rohen Leistungsregisters. „export_positive" passt zur
+      verifizierten SolarEdge-Referenzanlage. Im Log gilt immer positiv = Bezug.
+  swap_counters:
+    name: Zählerstände tauschen
+    description: >-
+      Tauscht Bezugs- und Einspeisezähler, falls die Messrichtung es erfordert.
+      Aus lassen, wenn beide Zähler bereits dem Referenzzähler entsprechen.
+  meter_serial:
+    name: Virtuelle Zähler-Seriennummer
+    description: >-
+      Eindeutige 32-Bit-Seriennummer des emulierten SMA Energy Meters. Darf mit
+      keinem realen SMA-Gerät im Netz kollidieren.
+  susy_id:
+    name: SUSy-ID
+    description: >-
+      SMA-SUSy-ID des emulierten Zählers. 270 ist die Standard-Energy-Meter-ID.
+  poll_interval_seconds:
+    name: Abfrageintervall (Sekunden)
+    description: >-
+      Sekunden zwischen zwei Modbus-Lesezugriffen auf den Zählerblock.
+  transmit_interval_seconds:
+    name: Sendeintervall (Sekunden)
+    description: >-
+      Sekunden zwischen zwei Speedwire-Telegrammen. Der letzte frische Wert wird
+      wiederholt.
+  stale_after_seconds:
+    name: Veraltet nach (Sekunden)
+    description: >-
+      Nach dieser Zeit ohne gültige Neueinlesung wird kein Telegramm mehr gesendet.
+  max_abs_power_w:
+    name: Plausibilitätsgrenze Leistung (W)
+    description: >-
+      Verwirft Messwerte, deren absolute Netzleistung diesen Wert überschreitet.
+  multicast_interface:
+    name: Multicast-Interface-IPv4
+    description: >-
+      Lokale IPv4-Adresse des Netzwerkinterfaces Richtung SMA-Wechselrichter.
+      Auf Hosts mit einem Interface leer lassen.
+  transmit_enabled:
+    name: Speedwire-Übertragung aktivieren
+    description: >-
+      Deaktiviert lassen (Dry-Run), bis die Werte gegen den Referenzzähler
+      geprüft sind. Aktiviert sendet UDP-Multicast 239.12.255.254:9522.
