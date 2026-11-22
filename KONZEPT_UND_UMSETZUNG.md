@@ -20,7 +20,7 @@ Die Bridge soll:
 4. entsprechende UDP-Multicast-Telegramme im lokalen Netz veröffentlichen,
 5. damit – soweit der SMA sie annimmt – im SMA-System Netzbezug, Einspeisung und Verbrauchsdaten verfügbar machen.
 
-**Nicht im Umfang von v0.2.0:** Integration in die Einspeiseregelung, Leistungsbegrenzung nach Netzbetreibervorgaben, eichrechtliche Messung, Home-Manager-Emulation, Übernahme der SolarEdge-PV-Erzeugungsdaten in die interne SMA-Ertragsbilanz, per-Phase-Messwerte und automatische SunSpec-Geräteerkennung.
+**Langfristiges Ziel:** Die modulare Bridge soll später weitere Quellen (z. B. Shelly, Victron und andere Modbus-Zähler) ansprechen können. In dieser Version existiert ausschließlich die SolarEdge-SunSpec-Quelle.\n\n**Nicht im Umfang von v0.2.0:** Integration in die Einspeiseregelung, Leistungsbegrenzung nach Netzbetreibervorgaben, eichrechtliche Messung, Home-Manager-Emulation, Übernahme der SolarEdge-PV-Erzeugungsdaten in die interne SMA-Ertragsbilanz, per-Phase-Messwerte und automatische SunSpec-Geräteerkennung.
 
 ## 2. Architektur
 
@@ -132,7 +132,7 @@ sma-energy-bridge/
 ├── repository.yaml
 ├── README.md
 ├── KONZEPT_UND_UMSETZUNG.md
-├── sma_solaredge_bridge/
+├── sma_energy_bridge/
 │   ├── config.yaml          # Supervisor-Konfiguration, Optionen, Validierung
 │   ├── Dockerfile           # Container/Startskript
 │   └── main.py              # Modbus-TCP-Client + SunSpec + SMA Speedwire
@@ -179,7 +179,7 @@ Bei mehreren Interfaces auf dem HA-Host empfiehlt es sich, `multicast_interface`
 
 ## 7. Installation im eigenen GitHub-Repository
 
-1. Neuen GitHub-Repository-Namen festlegen, z. B. `sma-energy-bridge`.
+1. Neuen GitHub-Repository-Namen festlegen, `Xerolux/sma-energy-bridge`.
 2. Sämtliche Dateien aus dem gelieferten Projektordner in die Repository-Wurzel hochladen; **nicht nur** das Markdown.
 3. Optional `repository.yaml` mit deiner echten Repository-URL und Maintainer-Angabe versehen; aktuell enthält die Vorlage Platzhalter.
 4. In Home Assistant OS: **Einstellungen → Apps / Add-ons → App-Store → Repositories** öffnen und die GitHub-Repository-URL hinzufügen. Der genaue Menüname hängt von der Home-Assistant-Version ab.
@@ -208,7 +208,7 @@ Keine Passwörter, privaten Zugangstokens, echten IP-Adressen aus dem Heimnetz o
 
 ```bash
 python -m unittest discover -s tests -v
-python -m py_compile sma_solaredge_bridge/main.py
+python -m py_compile sma_energy_bridge/main.py
 ```
 
 **Muss:** Alle Tests bestehen, keine Python-Syntaxfehler, keine Schreib-Funktionscodes an Modbus.
