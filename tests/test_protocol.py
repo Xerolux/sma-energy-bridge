@@ -19,8 +19,14 @@ class ProtocolTests(unittest.TestCase):
         options = {"meter_serial": 900000001, "power_sign": "export_positive",
                    "swap_counters": True}
         block = [0] * 55
+        block[3:7] = [1250, 0x8000, 2300, 0xFFFD]
+        block[8:11] = [2300, 2310, 2320]
+        block[15] = 0xFFFF
         block[16:18] = [5000, 0xFFFE]
         block[19:22] = [0xFF9C, 250, 0x8000]
+        block[23:28] = [1500, 1250, 2750, 3000, 0xFFFF]
+        block[28:33] = [0xFF9C, 200, 0x8000, 180, 0xFFFF]
+        block[33:38] = [0xFFCE, 80, 0x8000, 110, 0]
         block[41], block[49] = 1000, 2000
         frame = bridge.build_emeter20(options, (100, 12.34, 56.78), block, 1234)
         self.assertEqual(len(frame), 608)
@@ -45,6 +51,19 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(fields[61, 4], 0)
         self.assertEqual(fields[21, 8], 3_600_000)
         self.assertEqual(fields[22, 8], 7_200_000)
+        self.assertEqual(fields[3, 4], 100)
+        self.assertEqual(fields[24, 4], 200)
+        self.assertEqual(fields[43, 4], 0)
+        self.assertEqual(fields[9, 4], 1500)
+        self.assertEqual(fields[50, 4], 2750)
+        self.assertEqual(fields[69, 4], 0)
+        self.assertEqual(fields[13, 4], 500)
+        self.assertEqual(fields[33, 4], 800)
+        self.assertEqual(fields[73, 4], 0)
+        self.assertEqual(fields[31, 4], 1250)
+        self.assertEqual(fields[51, 4], 0)
+        self.assertEqual(fields[32, 4], 230_000)
+        self.assertEqual(fields[72, 4], 232_000)
 
     def test_check_never_creates_multicast_socket(self):
         options = dict(power_sign="export_positive", poll_interval_seconds=5,

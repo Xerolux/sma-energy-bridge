@@ -1,5 +1,5 @@
 name: "SMA Energy Bridge (Experimental)"
-version: "0.3.4"
+version: "0.3.5"
 slug: "sma_energy_bridge"
 description: "SolarEdge SunSpec grid meter via existing Modbus TCP proxy as an SMA Speedwire Energy Meter. For display/testing only."
 url: "https://github.com/Xerolux/sma-energy-bridge"

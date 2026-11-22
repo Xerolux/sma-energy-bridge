@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5
+
+- Populate EMETER-20 line-to-neutral voltage, phase current, power factor, and total and per-phase reactive and apparent power from SolarEdge SunSpec.
+- Keep unavailable values and unsupported reactive and apparent energy counters zero-filled for compatibility.
+
 ## 0.3.4
 
 - Add an optional direct IPv4 destination for Speedwire telegrams when multicast delivery is intermittent.

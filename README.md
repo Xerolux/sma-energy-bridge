@@ -92,8 +92,11 @@ Sunny Tripower STP8.0-3AV-40 running firmware 4.10.10.R, including while powered
 on AC only. The list of available meters can remain empty.
 
 The 608-byte profile uses SUSy ID 349 and UDP source port 9522. It carries
-active power, active energy and grid frequency from SunSpec where available.
-Other fields in the compatibility profile are zero-filled. Keep transmission
+active power and energy, frequency, line-to-neutral voltage, phase current,
+power factor, reactive power and apparent power from SunSpec where available.
+Reactive power follows the configured grid orientation. Apparent power uses
+the direction of active power, and SMA receives the power factor magnitude.
+Unavailable fields and reactive and apparent energy counters are zero-filled. Keep transmission
 disabled during initial comparisons. Use this app for monitoring and testing.
 
 If the SMA intermittently holds old readings despite fresh multicast frames,

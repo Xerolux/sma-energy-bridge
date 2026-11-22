@@ -160,6 +160,15 @@ def wrap_frame(serial: int, susy: int, tick_ms: int, payload: bytes) -> bytes:
     return header + payload + b"\x00\x00\x00\x00"
 
 
+def scaled_meter_value(block: list[int], index: int, scale_index: int) -> float | None:
+    """Decode an optional SunSpec int16 measurement and its scale factor."""
+    scale = signed16(block[scale_index])
+    raw = block[index]
+    if raw == 0x8000 or not -6 <= scale <= 6:
+        return None
+    return signed16(raw) * 10 ** scale
+
+
 def build_emeter20(config: dict, values: tuple[float, float, float],
                    block: list[int], tick_ms: int) -> bytes:
     """Build the EMETER-20 profile verified with the Sunny Tripower."""
@@ -170,20 +179,38 @@ def build_emeter20(config: dict, values: tuple[float, float, float],
         (1, 8): imported * 3_600_000,
         (2, 8): exported * 3_600_000,
     }
-    frequency_sf = signed16(block[17])
-    if block[16] != 0xFFFF and -6 <= frequency_sf <= 6:
-        amounts[14, 4] = block[16] * 10 ** frequency_sf * 1000
+    frequency = scaled_meter_value(block, 16, 17)
+    if frequency is not None and frequency > 0:
+        amounts[14, 4] = frequency * 1000
     sign = -1 if config["power_sign"] == "export_positive" else 1
-    power_scale = 10 ** signed16(block[22])
     energy_scale = 10 ** signed16(block[54]) * 3600
-    for phase in range(3):
-        offset = 20 * (phase + 1)
-        if block[19 + phase] != 0x8000:
-            watts = signed16(block[19 + phase]) * power_scale * sign
+    for point in range(4):
+        offset = 20 * point
+        phase_power = scaled_meter_value(block, 18 + point, 22)
+        watts = power if point == 0 else (phase_power * sign if phase_power is not None else None)
+        reactive = scaled_meter_value(block, 28 + point, 32)
+        apparent = scaled_meter_value(block, 23 + point, 27)
+        factor = scaled_meter_value(block, 33 + point, 37)
+        if reactive is not None:
+            reactive *= sign
+            amounts[offset + (3 if reactive >= 0 else 4), 4] = abs(reactive) * 10
+        if apparent is not None and watts is not None:
+            amounts[offset + (9 if watts >= 0 else 10), 4] = abs(apparent) * 10
+        if factor is not None and abs(factor) <= 100:
+            amounts[offset + 13, 4] = abs(factor) * 10  # Percent to per mille.
+        if point == 0:
+            continue
+        current = scaled_meter_value(block, 2 + point, 6)
+        voltage = scaled_meter_value(block, 7 + point, 15)  # Line to neutral.
+        if current is not None and current >= 0:
+            amounts[offset + 11, 4] = current * 1000
+        if voltage is not None and voltage >= 0:
+            amounts[offset + 12, 4] = voltage * 1000
+        if watts is not None:
             amounts[offset + 1, 4] = max(watts, 0) * 10
             amounts[offset + 2, 4] = max(-watts, 0) * 10
         for direction, base in enumerate((46, 38), 1):
-            index = base + 2 * (phase + 1)
+            index = base + 2 * point
             raw = _u32(*block[index:index + 2])
             if raw != 0xFFFFFFFF:
                 counter = 3 - direction if config.get("swap_counters", False) else direction
