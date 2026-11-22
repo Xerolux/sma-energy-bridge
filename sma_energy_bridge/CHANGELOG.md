@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Refresh the Home Assistant app icon and logo with a mint signal trace over a bridge. Both assets use transparent corners and are designed for light and dark themes.
+- Update the Home Assistant documentation with supported architectures (`amd64` and `aarch64`) in English and German.
+
 ## 0.4.0
 
 - Keep SolarEdge SunSpec as the default meter profile and add user-defined Modbus TCP register maps.
