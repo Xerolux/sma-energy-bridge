@@ -20,7 +20,9 @@ Die Bridge soll:
 4. entsprechende UDP-Multicast-Telegramme im lokalen Netz veröffentlichen,
 5. damit – soweit der SMA sie annimmt – im SMA-System Netzbezug, Einspeisung und Verbrauchsdaten verfügbar machen.
 
-**Langfristiges Ziel:** Die modulare Bridge soll später weitere Quellen (z. B. Shelly, Victron und andere Modbus-Zähler) ansprechen können. In dieser Version existiert ausschließlich die SolarEdge-SunSpec-Quelle.\n\n**Nicht im Umfang von v0.2.0:** Integration in die Einspeiseregelung, Leistungsbegrenzung nach Netzbetreibervorgaben, eichrechtliche Messung, Home-Manager-Emulation, Übernahme der SolarEdge-PV-Erzeugungsdaten in die interne SMA-Ertragsbilanz, per-Phase-Messwerte und automatische SunSpec-Geräteerkennung.
+**Langfristiges Ziel:** Die modulare Bridge soll später weitere Quellen (z. B. Shelly, Victron und andere Modbus-Zähler) ansprechen können. In dieser Version existiert ausschließlich die SolarEdge-SunSpec-Quelle.
+
+**Nicht im Umfang von v0.2.0:** Integration in die Einspeiseregelung, Leistungsbegrenzung nach Netzbetreibervorgaben, eichrechtliche Messung, Home-Manager-Emulation, Übernahme der SolarEdge-PV-Erzeugungsdaten in die interne SMA-Ertragsbilanz, per-Phase-Messwerte und automatische SunSpec-Geräteerkennung.
 
 ## 2. Architektur
 
