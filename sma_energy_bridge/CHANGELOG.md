@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Correct the Speedwire group tag header so receivers can parse the meter telegram.
+
 ## 0.3.0
 
 - Add a one-shot, read-only source and Speedwire frame check.

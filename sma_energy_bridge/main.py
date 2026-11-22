@@ -145,7 +145,7 @@ def build_frame(serial: int, susy: int, power_w: float,
         obis(2, 8, round(exported_kwh * 3_600_000)),
     ))
     payload = struct.pack(">HI", susy, serial) + struct.pack(">I", tick_ms & 0xFFFFFFFF) + payload
-    header = b"SMA\x00" + struct.pack(">IHHHHH", 4, 0x02A0, 1, 2 + len(payload), 0x0010, 0x6069)
+    header = b"SMA\x00" + struct.pack(">HHIHHH", 4, 0x02A0, 1, 2 + len(payload), 0x0010, 0x6069)
     return header + payload + b"\x00\x00\x00\x00"
 
 

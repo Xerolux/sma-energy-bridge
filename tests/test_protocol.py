@@ -38,7 +38,8 @@ class ProtocolTests(unittest.TestCase):
 
     def test_import(self):
         frame = bridge.build_frame(900000001, 270, 1200, 12.345, 67.89, 1234)
-        self.assertEqual(frame[:4], b'SMA\0')
+        # Tag 0 uses a 16-bit length and ID followed by a 32-bit group ID.
+        self.assertEqual(frame[:12], bytes.fromhex("534d4100 0004 02a0 00000001"))
         self.assertEqual(struct.unpack_from('>H', frame, 16)[0], 0x6069)
         self.assertEqual(struct.unpack_from('>H', frame, 12)[0], len(frame)-16-4)
         self.assertEqual(struct.unpack_from('>I', frame, 20)[0], 900000001)
