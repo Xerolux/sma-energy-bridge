@@ -30,7 +30,7 @@ Add your GitHub repository URL to Home Assistant **Settings → Apps → Install
 
 ```bash
 python -m unittest discover -s tests -v
-python -m py_compile sma_solaredge_bridge/main.py
+python -m py_compile sma_energy_bridge/main.py
 ```
 
-**Implemented:** custom Modbus TCP function-03 client, SunSpec 201–204 meter mapping, raw-unit conversion, SMA telegram builder, stale-data detection, dry-run mode, and protocol tests. **Not implemented yet:** hardware acceptance, optional phase values, production-grade counter rollover handling, assured recognition on all SMA firmware versions.
+**Architecture:** The initial provider is SolarEdge SunSpec via an existing Modbus TCP proxy; other energy-meter providers are planned and not yet implemented.\n\n**Implemented:** custom Modbus TCP function-03 client, SunSpec 201–204 meter mapping, raw-unit conversion, SMA telegram builder, stale-data detection, dry-run mode, and protocol tests. **Not implemented yet:** hardware acceptance, optional phase values, production-grade counter rollover handling, assured recognition on all SMA firmware versions.
