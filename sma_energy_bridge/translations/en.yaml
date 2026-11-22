@@ -61,8 +61,12 @@ configuration:
     description: >-
       Local IPv4 address of the network interface facing the SMA inverter.
       Leave empty on single-NIC hosts.
+  unicast_host:
+    name: Speedwire unicast destination
+    description: >-
+      Optional IPv4 address of the receiver. Leave empty for multicast. The local interface option also sets the unicast source address.
   transmit_enabled:
     name: Enable Speedwire transmission
     description: >-
       Keep disabled (dry-run) until the values have been validated against the
-      reference meter. Enabling emits UDP multicast 239.12.255.254:9522.
+      reference meter. Enabling emits Speedwire UDP telegrams.

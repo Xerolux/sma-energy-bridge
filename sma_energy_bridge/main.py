@@ -15,6 +15,7 @@ import os
 import socket
 import struct
 import time
+from ipaddress import IPv4Address
 from pathlib import Path
 
 LOG = logging.getLogger("sma_energy_bridge")
@@ -216,6 +217,10 @@ def encode_sample(config: dict, values: tuple[float, float, float],
 def validate(options: dict) -> None:
     if options.get("frame_profile", "compact") not in ("compact", "emeter20"):
         raise ValueError("Unsupported frame_profile")
+    if unicast_host := options.get("unicast_host"):
+        destination = IPv4Address(unicast_host)
+        if destination.is_multicast or destination.is_unspecified or int(destination) == 0xFFFFFFFF:
+            raise ValueError("unicast_host must be a unicast IPv4 address")
     if options["power_sign"] not in ("import_positive", "export_positive"):
         raise ValueError("Unsupported sign convention")
     for key, lo, hi in (
@@ -259,21 +264,25 @@ def main() -> None:
         return
     transmit = config["transmit_enabled"]
     profile = config.get("frame_profile", "compact")
+    unicast_host = config.get("unicast_host")
+    destination = (unicast_host or MULTICAST_GROUP, MULTICAST_PORT)
     sock = None
     if transmit:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
         interface = config.get("multicast_interface") or ""
-        if interface:
-            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(interface))
-        if profile == "emeter20":
+        if not unicast_host:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+            if interface:
+                sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF,
+                                socket.inet_aton(interface))
+        if profile == "emeter20" or unicast_host:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((interface, MULTICAST_PORT))
     LOG.info("START source=Modbus TCP proxy (%s:%s, unit=%s, model_base=%s); "
-             "TX=%s; serial=%s; profile=%s",
+             "TX=%s; serial=%s; profile=%s; destination=%s:%s",
              config["modbus_host"], config["modbus_port"], config["modbus_unit_id"],
              config["meter_model_base"], "ENABLED" if transmit else "DRY-RUN",
-             config["meter_serial"], profile)
+             config["meter_serial"], profile, *destination)
     last_good: tuple[float, float, float] | None = None
     last_block: list[int] | None = None
     last_good_at: float | None = None
@@ -305,7 +314,7 @@ def main() -> None:
                 tick = time.time() if last_block is not None else now
                 frame = encode_sample(config, last_good, last_block, int(tick * 1000))
                 if sock is not None:
-                    sock.sendto(frame, (MULTICAST_GROUP, MULTICAST_PORT))
+                    sock.sendto(frame, destination)
                 if now >= next_log:
                     power, inc, out = last_good
                     LOG.info("%s grid=%+.1f W (+=import), import=%.3f kWh, "

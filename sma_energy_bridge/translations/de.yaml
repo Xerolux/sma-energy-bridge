@@ -62,8 +62,12 @@ configuration:
     description: >-
       Lokale IPv4-Adresse des Netzwerkinterfaces Richtung SMA-Wechselrichter.
       Auf Hosts mit einem Interface leer lassen.
+  unicast_host:
+    name: Speedwire-Unicast-Ziel
+    description: >-
+      Optionale IPv4-Adresse des Empfängers. Leer lassen für Multicast. Die lokale Schnittstellenadresse gilt auch als Unicast-Absenderadresse.
   transmit_enabled:
     name: Speedwire-Übertragung aktivieren
     description: >-
       Deaktiviert lassen (Dry-Run), bis die Werte gegen den Referenzzähler
-      geprüft sind. Aktiviert sendet UDP-Multicast 239.12.255.254:9522.
+      geprüft sind. Aktiviert den Versand von Speedwire-UDP-Telegrammen.

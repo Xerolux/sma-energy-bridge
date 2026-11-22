@@ -95,3 +95,7 @@ The 608-byte profile uses SUSy ID 349 and UDP source port 9522. It carries
 active power, active energy and grid frequency from SunSpec where available.
 Other fields in the compatibility profile are zero-filled. Keep transmission
 disabled during initial comparisons. Use this app for monitoring and testing.
+
+If the SMA intermittently holds old readings despite fresh multicast frames,
+set `unicast_host` to the inverter's IPv4 address and check its readings again.
+The app then sends directly to UDP port 9522. Leave the option blank for multicast.

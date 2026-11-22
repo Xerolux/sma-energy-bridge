@@ -67,6 +67,29 @@ class ProtocolTests(unittest.TestCase):
             "speedwire_bytes": 72,
         })
 
+    def test_unicast_sends_from_speedwire_port(self):
+        options = dict(power_sign="export_positive", poll_interval_seconds=5,
+                       transmit_interval_seconds=1, stale_after_seconds=15,
+                       max_abs_power_w=30000, modbus_unit_id=1, modbus_host="meter",
+                       modbus_port=502, meter_serial=900000001, susy_id=270,
+                       meter_model_base=40188, frame_profile="emeter20",
+                       transmit_enabled=True, multicast_interface="192.0.2.10",
+                       unicast_host="192.0.2.20")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "options.json"
+            path.write_text(json.dumps(options), encoding="utf-8")
+            with (patch("sys.argv", ["main.py", "--options", str(path)]),
+                  patch.object(bridge, "read_sample", return_value=((10, 20, 30), [0] * 55)),
+                  patch.object(bridge.socket, "socket") as udp,
+                  patch.object(bridge.time, "sleep", side_effect=KeyboardInterrupt),
+                  self.assertRaises(KeyboardInterrupt)):
+                bridge.main()
+        udp.return_value.bind.assert_called_once_with(("192.0.2.10", 9522))
+        udp.return_value.sendto.assert_called_once()
+        frame, destination = udp.return_value.sendto.call_args.args
+        self.assertEqual(len(frame), 608)
+        self.assertEqual(destination, ("192.0.2.20", 9522))
+
     def test_import(self):
         frame = bridge.build_frame(900000001, 270, 1200, 12.345, 67.89, 1234)
         # Tag 0 uses a 16-bit length and ID followed by a 32-bit group ID.

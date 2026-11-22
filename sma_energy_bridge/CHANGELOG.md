@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+
+- Add an optional direct IPv4 destination for Speedwire telegrams when multicast delivery is intermittent.
+
 ## 0.3.3
 
 - Add the tested 608-byte EMETER-20 profile with SUSy ID 349 and UDP source port 9522.
