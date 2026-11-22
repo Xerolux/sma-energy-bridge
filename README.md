@@ -1,10 +1,10 @@
-# SMA Energy Bridge (Experimental)
+# SMA Energy Bridge (Beta)
 
 [![Tests](https://github.com/Xerolux/sma-energy-bridge/actions/workflows/tests.yaml/badge.svg)](https://github.com/Xerolux/sma-energy-bridge/actions/workflows/tests.yaml)
 
 First supported source: read-only **SolarEdge SunSpec meter → Modbus TCP proxy → SMA Speedwire Energy Meter multicast**. German technical design and implementation: [KONZEPT_UND_UMSETZUNG.md](KONZEPT_UND_UMSETZUNG.md).
 
-⚠️ **Experimental, display/test only.** Manual EMETER-20 assignment and live grid readings were verified on a `STP8.0-3AV-40`. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
+⚠️ **Beta, display/test only.** Manual EMETER-20 assignment and live grid readings were verified on a `STP8.0-3AV-40`. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
 
 ## Configuration
 

@@ -1,4 +1,4 @@
-# SMA Energy Bridge
+# SMA Energy Bridge (Beta)
 
 Bridges an external grid-connection-point energy meter into the SMA Speedwire
 Energy Meter multicast protocol, so SMA devices can display meter data from a

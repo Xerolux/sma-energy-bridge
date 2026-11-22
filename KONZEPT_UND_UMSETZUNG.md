@@ -193,7 +193,7 @@ Bei mehreren Interfaces auf dem HA-Host empfiehlt es sich, `multicast_interface`
 2. Sämtliche Dateien aus dem gelieferten Projektordner in die Repository-Wurzel hochladen; **nicht nur** das Markdown.
 3. Optional `repository.yaml` mit deiner echten Repository-URL und Maintainer-Angabe versehen; aktuell enthält die Vorlage Platzhalter.
 4. In Home Assistant OS: **Einstellungen → Apps / Add-ons → App-Store → Repositories** öffnen und die GitHub-Repository-URL hinzufügen. Der genaue Menüname hängt von der Home-Assistant-Version ab.
-5. **SMA Energy Bridge (Experimental)** installieren, `modbus_host`/Port/Unit-ID anpassen und starten.
+5. **SMA Energy Bridge (Beta)** installieren, `modbus_host`/Port/Unit-ID anpassen und starten.
 6. Mit `transmit_enabled: false` in den Logs die realen Werte für `grid`, `import`, `export` prüfen.
 7. Nach bestandenem Test `transmit_enabled: true` setzen und die Bridge neu starten.
 8. Im SMA-Webinterface als Installateur prüfen, ob der virtuelle Zähler erkannt beziehungsweise unter **Meter auf Speedwire** mit der eingestellten Seriennummer auswählbar ist. Menüpunkt und unterstützte Funktion sind firmwareabhängig.

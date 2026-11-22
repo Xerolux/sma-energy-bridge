@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.6
+
+- Rename the Home Assistant app and repository to SMA Energy Bridge (Beta).
+- Remove the experimental store flag. Meter data and transmission behavior are unchanged.
+
 ## 0.3.5
 
 - Populate EMETER-20 line-to-neutral voltage, phase current, power factor, and total and per-phase reactive and apparent power from SolarEdge SunSpec.

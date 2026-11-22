@@ -1,6 +1,6 @@
 """SolarEdge SunSpec meter -> SMA Energy Meter Speedwire transmitter.
 
-Experimental display-only Home Assistant app. The SolarEdge data source is a
+Beta Home Assistant app for displaying meter data. The SolarEdge data source is a
 read-only Modbus TCP proxy. No values are written to Modbus or the SMA inverter.
 Compatibility with an actual SMA inverter must be verified on site.
 """
