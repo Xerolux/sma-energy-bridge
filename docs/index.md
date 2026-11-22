@@ -12,6 +12,11 @@ Connect a Modbus TCP grid meter to a compatible SMA inverter from Home Assistant
 | SolarEdge SunSpec | SunSpec integer meter model, e.g. SolarEdge Meter 1 at zero-based address 40188 | SolarEdge SE10K through Modbus TCP and Sunny Tripower 8.0 with EMETER-20 |
 | Custom Modbus | The meter's register map for grid power, imported energy and exported energy | Software-tested through register decoding and Speedwire encoding. Validate each device on site. |
 
+## Supported architectures
+
+- `amd64` for 64-bit Intel and AMD systems.
+- `aarch64` for 64-bit ARM systems, such as a Raspberry Pi 4 or 5 running 64-bit Home Assistant OS.
+
 ## Install in Home Assistant
 
 1. Add the [Xerolux repository](https://github.com/Xerolux/sma-energy-bridge) under **Settings → Apps → Install app → Repositories**.

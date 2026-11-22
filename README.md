@@ -8,6 +8,13 @@ Read a grid meter over Modbus TCP and forward its measurements as SMA Speedwire 
 
 ⚠️ **Beta, display/test only.** Manual EMETER-20 assignment and live grid readings were verified on a `STP8.0-3AV-40`. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
 
+## Supported architectures / Unterstützte Architekturen
+
+| Home Assistant | English | Deutsch |
+|---|---|---|
+| `amd64` | 64-bit Intel and AMD systems | 64-Bit-Systeme mit Intel- oder AMD-Prozessor |
+| `aarch64` | 64-bit ARM systems, e.g. Raspberry Pi 4 or 5 with 64-bit Home Assistant OS | 64-Bit-ARM-Systeme, z. B. Raspberry Pi 4 oder 5 mit 64-Bit-Home-Assistant-OS |
+
 ## Configuration
 
 Configure the existing proxy address and port in the Home Assistant app settings. `meter_model_base: 40188` addresses SolarEdge SunSpec Meter 1 (base-0); verify DID 201–204. `transmit_enabled: false` is the default **dry-run** mode.

@@ -13,6 +13,11 @@ Mit der Bridge bindest du einen Modbus-TCP-Netzzähler über Home Assistant an e
 | SolarEdge SunSpec | SunSpec-Zählermodell mit Ganzzahlregistern, z. B. SolarEdge Meter 1 an nullbasierter Adresse 40188 | SolarEdge SE10K über Modbus TCP und Sunny Tripower 8.0 mit EMETER-20 |
 | Eigenes Modbus-Profil | Registertabelle für Netzleistung, Bezugsenergie und Einspeiseenergie | Registerdekodierung und Speedwire-Telegramm per Softwaretest. Jedes konkrete Gerät vor Ort abgleichen. |
 
+## Unterstützte Architekturen
+
+- `amd64` für 64-Bit-Systeme mit Intel- oder AMD-Prozessor.
+- `aarch64` für 64-Bit-ARM-Systeme, etwa Raspberry Pi 4 oder 5 mit 64-Bit-Home-Assistant-OS.
+
 ## Installation in Home Assistant
 
 1. Das [Xerolux-Repository](https://github.com/Xerolux/sma-energy-bridge) unter **Einstellungen → Apps → App installieren → Repositories** hinzufügen.
