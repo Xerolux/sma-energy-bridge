@@ -1,8 +1,9 @@
-FROM ghcr.io/home-assistant/base:latest
-ARG BUILD_VERSION=0.2.0
-ARG BUILD_ARCH=amd64
+ARG BUILD_FROM
+FROM ${BUILD_FROM}
+ARG BUILD_VERSION
+ARG BUILD_ARCH
 LABEL io.hass.version="${BUILD_VERSION}" \
-      io.hass.type="app" \
+      io.hass.type="addon" \
       io.hass.arch="${BUILD_ARCH}"
 RUN apk add --no-cache python3
 WORKDIR /app

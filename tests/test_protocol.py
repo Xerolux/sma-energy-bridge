@@ -1,8 +1,10 @@
 import importlib.util
+import json
 from pathlib import Path
 import socket
 import struct
 import threading
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -13,6 +15,27 @@ spec.loader.exec_module(bridge)
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_check_never_creates_multicast_socket(self):
+        options = dict(power_sign="export_positive", poll_interval_seconds=5,
+                       transmit_interval_seconds=1, stale_after_seconds=15,
+                       max_abs_power_w=30000, modbus_unit_id=1,
+                       meter_serial=900000001, susy_id=270, meter_model_base=40188,
+                       transmit_enabled=True)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "options.json"
+            path.write_text(json.dumps(options), encoding="utf-8")
+            with (patch("sys.argv", ["main.py", "--options", str(path), "--check"]),
+                  patch.object(bridge, "fetch_meter", return_value=(10, 20, 30)),
+                  patch.object(bridge.socket, "socket") as udp,
+                  patch("builtins.print") as output):
+                bridge.main()
+
+        udp.assert_not_called()
+        self.assertEqual(json.loads(output.call_args.args[0]), {
+            "grid_power_w": 10, "import_kwh": 20, "export_kwh": 30,
+            "speedwire_bytes": 72,
+        })
+
     def test_import(self):
         frame = bridge.build_frame(900000001, 270, 1200, 12.345, 67.89, 1234)
         self.assertEqual(frame[:4], b'SMA\0')

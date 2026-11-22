@@ -1,0 +1,101 @@
+# Optional HA package for the verified SolarEdge SunSpec Meter 1 layout.
+# SolarEdge raw power is export-positive at the verified meter.
+modbus:
+  - name: sma_bridge_sunspec
+    type: tcp
+    host: !secret sma_bridge_modbus_host
+    port: 502
+    sensors:
+      - name: SMA Bridge Model
+        unique_id: sma_bridge_model
+        slave: 1
+        address: 40188
+        input_type: holding
+        data_type: uint16
+        scan_interval: 10
+      - name: SMA Bridge Power Raw
+        unique_id: sma_bridge_power_raw
+        slave: 1
+        address: 40206
+        input_type: holding
+        data_type: int16
+        scan_interval: 10
+      - name: SMA Bridge Power Scale
+        unique_id: sma_bridge_power_scale
+        slave: 1
+        address: 40210
+        input_type: holding
+        data_type: int16
+        scan_interval: 10
+      - name: SMA Bridge Import Raw
+        unique_id: sma_bridge_import_raw
+        slave: 1
+        address: 40234
+        input_type: holding
+        data_type: uint32
+        scan_interval: 10
+      - name: SMA Bridge Export Raw
+        unique_id: sma_bridge_export_raw
+        slave: 1
+        address: 40226
+        input_type: holding
+        data_type: uint32
+        scan_interval: 10
+      - name: SMA Bridge Energy Scale
+        unique_id: sma_bridge_energy_scale
+        slave: 1
+        address: 40242
+        input_type: holding
+        data_type: int16
+        scan_interval: 10
+
+template:
+  - sensor:
+      - name: SMA Bridge Grid Power
+        unique_id: sma_bridge_grid_power
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: >-
+          {% set raw = states('sensor.sma_bridge_power_raw') | int(none) %}
+          {% set sf = states('sensor.sma_bridge_power_scale') | int(none) %}
+          {{ states('sensor.sma_bridge_model') | int(0) in [201, 202, 203, 204]
+              and raw is not none and raw != -32768
+              and sf is not none and -6 <= sf <= 6 }}
+        state: >-
+          {% set raw = states('sensor.sma_bridge_power_raw') | int(none) %}
+          {% set sf = states('sensor.sma_bridge_power_scale') | int(none) %}
+          {{ (-raw * 10 ** sf) | round(6) if raw is not none and sf is not none
+              and -6 <= sf <= 6 and raw != -32768 else none }}
+      - name: SMA Bridge Grid Import
+        unique_id: sma_bridge_grid_import
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: kWh
+        availability: >-
+          {% set raw = states('sensor.sma_bridge_import_raw') | int(none) %}
+          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
+          {{ states('sensor.sma_bridge_model') | int(0) in [201, 202, 203, 204]
+              and raw is not none and raw != 4294967295
+              and sf is not none and -6 <= sf <= 6 }}
+        state: >-
+          {% set raw = states('sensor.sma_bridge_import_raw') | int(none) %}
+          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
+          {{ (raw * 10 ** sf / 1000) | round(6) if raw is not none and sf is not none
+              and -6 <= sf <= 6 and raw != 4294967295 else none }}
+      - name: SMA Bridge Grid Export
+        unique_id: sma_bridge_grid_export
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: kWh
+        availability: >-
+          {% set raw = states('sensor.sma_bridge_export_raw') | int(none) %}
+          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
+          {{ states('sensor.sma_bridge_model') | int(0) in [201, 202, 203, 204]
+              and raw is not none and raw != 4294967295
+              and sf is not none and -6 <= sf <= 6 }}
+        state: >-
+          {% set raw = states('sensor.sma_bridge_export_raw') | int(none) %}
+          {% set sf = states('sensor.sma_bridge_energy_scale') | int(none) %}
+          {{ (raw * 10 ** sf / 1000) | round(6) if raw is not none and sf is not none
+              and -6 <= sf <= 6 and raw != 4294967295 else none }}

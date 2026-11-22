@@ -14,7 +14,7 @@ Configure the existing proxy address and port in the Home Assistant app settings
 | `modbus_port` | `502` | proxy listening port |
 | `modbus_unit_id` | `1` | SolarEdge unit ID behind proxy |
 | `meter_model_base` | `40188` | base-0 address of meter SunSpec DID |
-| `power_sign` | `import_positive` | sign of the meter power register |
+| `power_sign` | `export_positive` | raw register sign convention. Use this when negative power accompanies rising import energy |
 | `swap_counters` | `false` | swap imported/exported energy values if meter orientation requires |
 | `meter_serial` | `900000001` | unique, simulated meter ID |
 | `susy_id` | `270` | SMA Energy Meter SUSy ID |
@@ -24,7 +24,19 @@ With more than one NIC, set `multicast_interface` to the **local IPv4 address** 
 
 ## Repository use
 
-Add your GitHub repository URL to Home Assistant **Settings → Apps → Install app → Repositories**, then install this app. Customize `repository.yaml` with your GitHub account details first. In the logs validate the signs and counters with transmission disabled. Only then switch on transmission, inspect UDP multicast `239.12.255.254:9522`, and check for recognition at the SMA.
+Add [the Xerolux repository](https://github.com/Xerolux/sma-energy-bridge) under **Settings → Apps → Install app → Repositories**, then install SMA Energy Bridge. Configure the proxy and start the app with transmission disabled. In the app log, positive grid power means import. Compare it and both lifetime counters against the reference meter. Check the existing `power_sign` explicitly after upgrading from 0.2.0.
+
+For a one-shot check outside Supervisor, save the options from `sma_energy_bridge/config.yaml` as a JSON object with your proxy host and run:
+
+```bash
+python sma_energy_bridge/main.py --options options.json --check
+```
+
+The command reads one holding-register block and prints grid power, import and export in kWh, and the generated frame size. It does not open a multicast socket.
+
+## Native Home Assistant Modbus
+
+Use [the optional package](examples/home-assistant-modbus.yaml) if you want HA entities for the same meter. Enable [Home Assistant packages](https://www.home-assistant.io/docs/configuration/packages/), copy the package into your packages directory, and set `sma_bridge_modbus_host` in `secrets.yaml`. The example uses SolarEdge Meter 1, TCP port 502 and unit ID 1. Check for existing SolarEdge entities before enabling additional polling. Keep the raw entity IDs used by the templates and select the two kWh entities as grid consumption and return to grid in the Energy dashboard. The native package publishes HA entities. The app handles Speedwire transmission independently.
 
 ## Tests
 
@@ -35,4 +47,4 @@ python -m py_compile sma_energy_bridge/main.py
 
 **Architecture:** The initial provider is SolarEdge SunSpec via an existing Modbus TCP proxy; other energy-meter providers are planned and not yet implemented.
 
-**Implemented:** custom Modbus TCP function-03 client, SunSpec 201–204 meter mapping, raw-unit conversion, SMA telegram builder, stale-data detection, dry-run mode, and protocol tests. **Not implemented yet:** hardware acceptance, optional phase values, production-grade counter rollover handling, assured recognition on all SMA firmware versions.
+The app uses Modbus TCP function 03, validates the SunSpec meter ID and scale factors, and stops on a counter decrease. Hardware acceptance at the SMA receiver and counter rollover handling remain open.

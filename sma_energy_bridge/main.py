@@ -7,6 +7,7 @@ Compatibility with an actual SMA inverter must be verified on site.
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import math
@@ -165,12 +166,28 @@ def validate(options: dict) -> None:
         raise ValueError("Invalid modbus_unit_id")
     if not 1 <= options["meter_serial"] <= 0xFFFFFFFF:
         raise ValueError("Invalid meter_serial")
+    if not 0 <= options["susy_id"] <= 0xFFFF:
+        raise ValueError("Invalid susy_id")
+    if not 0 <= options["meter_model_base"] <= 65536 - 55:
+        raise ValueError("Invalid meter_model_base")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--options", type=Path, default=Path("/data/options.json"))
+    parser.add_argument("--check", action="store_true",
+                        help="Read one sample and validate the frame locally")
+    args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    config = json.loads(Path("/data/options.json").read_text(encoding="utf-8"))
+    config = json.loads(args.options.read_text(encoding="utf-8"))
     validate(config)
+    if args.check:
+        power, imported, exported = fetch_meter(config)
+        frame = build_frame(config["meter_serial"], config["susy_id"],
+                            power, imported, exported, 0)
+        print(json.dumps({"grid_power_w": power, "import_kwh": imported,
+                          "export_kwh": exported, "speedwire_bytes": len(frame)}))
+        return
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
     interface = config.get("multicast_interface", "")
@@ -193,7 +210,8 @@ def main() -> None:
                 new = fetch_meter(config)
                 if last_counters is not None and (new[1] + 0.0001 < last_counters[0] or
                                                   new[2] + 0.0001 < last_counters[1]):
-                    raise ValueError("Counter decreased (reset/wrap): halt TX until manual review")
+                    LOG.error("Counter decreased (reset/wrap); stopping for manual review")
+                    return
                 last_good = new
                 last_good_at = time.monotonic()
                 last_counters = (new[1], new[2])
