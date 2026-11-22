@@ -6,7 +6,7 @@
 **Messquelle:** vorhandener SolarEdge-Netzzähler am Netzanschlusspunkt, ausgelesen über den **bereits vorhandenen Modbus-TCP-Proxy**  
 **Betriebsart:** Zunächst ausschließlich **Visualisierung/Test**; keine zulassungsrelevante Regelung.
 
-> **Einschränkung:** Die Übertragung eines selbst erzeugten SMA-Energy-Meter-Telegramms ist protokollseitig dokumentierbar. Die automatische Erkennung und vollständige Verarbeitung durch genau diesen SMA-Wechselrichter und seine installierte Firmware **ist noch nicht am realen Gerät nachgewiesen**. Dieses Projekt ist keine zertifizierte oder vom Hersteller freigegebene Ersatzmessung.
+> **Validierung:** Das EMETER-20-Profil (608 Byte, SUSy-ID 349, UDP-Absenderport 9522) wurde am STP8.0-3AV-40 mit Firmware 4.10.10.R im AC-only-Betrieb geprüft. Manuell **SMA Energy Meter** als verwendeten Energiezähler und dieselbe Seriennummer wie im Add-on einstellen. Die automatische Zählerliste blieb leer. Das Projekt dient der Anzeige und Erprobung.
 
 ## 1. Ziel und Abgrenzung
 
@@ -236,8 +236,9 @@ python -m py_compile sma_energy_bridge/main.py
 
 - [ ] UDP-Pakete `239.12.255.254:9522` im SMA-LAN mit `tcpdump`/Wireshark sichtbar.
 - [ ] Virtuelle Seriennummer kollidiert mit keinem realen SMA Energy Meter.
-- [ ] SMA STP8.0-3AV-40 erkennt die Quelle; ansonsten **nicht** von erfolgreicher Integration sprechen.
-- [ ] Netzbezug, Einspeisung und Verbrauchsansicht stimmen mit der SolarEdge-Quelle überein.
+- [x] SMA STP8.0-3AV-40 verarbeitet die Quelle bei manueller Zuordnung im EMETER-20-Profil.
+- [x] Netzbezug, Einspeisung und beide Energiezähler wurden am SMA angezeigt.
+- [ ] Die berechnete SMA-Verbrauchsansicht wurde separat geprüft.
 - [ ] Keine unbeabsichtigte Leistungsregelung oder Warnung durch SMA-Parameter.
 - [ ] Verhalten nach SMA-Neustart, Proxy-Ausfall, HA-Neustart und nächtlichem PV-Stillstand getestet.
 

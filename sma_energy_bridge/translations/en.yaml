@@ -32,6 +32,10 @@ configuration:
     description: >-
       Unique 32-bit serial number of the emulated SMA Energy Meter. Must not
       collide with a real SMA device in the same network.
+  frame_profile:
+    name: Speedwire frame profile
+    description: >-
+      Select emeter20 for the 608-byte frame with SUSy ID 349 and UDP source port 9522. The SUSy ID option applies to the compact profile.
   susy_id:
     name: SUSy ID
     description: >-

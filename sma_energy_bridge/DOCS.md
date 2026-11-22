@@ -50,3 +50,17 @@ both import and export direction. Configuration used:
 - Do not use the emulated meter as the only measurement signal for feed-in
   limitation or zero-export control; SMA requires much faster measurement
   intervals for such control loops.
+
+## Sunny Tripower with EMETER-20
+
+Set `frame_profile: emeter20` in the app and configure a unique `meter_serial`.
+In the Sunny Tripower, select **SMA Energy Meter** as the energy meter in use
+under **System communication → Measured values**, then enter the same serial
+under **Meter on Speedwire**. The manual assignment was verified with a
+Sunny Tripower STP8.0-3AV-40 running firmware 4.10.10.R, including while powered
+on AC only. The list of available meters can remain empty.
+
+The 608-byte profile uses SUSy ID 349 and UDP source port 9522. It carries
+active power, active energy and grid frequency from SunSpec where available.
+Other fields in the compatibility profile are zero-filled. Keep transmission
+disabled during initial comparisons. Use this app for monitoring and testing.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+- Add the tested 608-byte EMETER-20 profile with SUSy ID 349 and UDP source port 9522.
+- Encode signed per-phase active power, active energy counters and grid frequency when available.
+- Keep the original compact profile as the default and leave transmission disabled by default.
+
 ## 0.3.2
 
 - Add `scripts/verify_against_ha.py` to verify live source values against Home

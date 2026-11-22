@@ -74,7 +74,7 @@ def main() -> int:
           f"power_sign={options['power_sign']} swap_counters={options.get('swap_counters', False)}")
     print(f"reference     : {base_url} ({args.ha_power_entity}, {args.ha_import_entity}, "
           f"{args.ha_export_entity}, ha power sign={args.ha_power_sign})")
-    print(f"normalized    : bridge grid power + = import (app log convention)\n")
+    print("normalized    : bridge grid power + = import (app log convention)\n")
 
     failures: list[str] = []
     worst_counter = 0.0

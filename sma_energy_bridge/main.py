@@ -106,6 +106,11 @@ def decode_meter_registers(registers: list[int]) -> tuple[float, float, float]:
 
 
 def fetch_meter(options: dict) -> tuple[float, float, float]:
+    values, _ = fetch_meter_sample(options)
+    return values
+
+
+def fetch_meter_sample(options: dict) -> tuple[tuple[float, float, float], list[int]]:
     block = read_holding_registers(
         options["modbus_host"], options["modbus_port"], options["modbus_unit_id"],
         options["meter_model_base"], 55,
@@ -117,15 +122,15 @@ def fetch_meter(options: dict) -> tuple[float, float, float]:
         imported, exported = exported, imported
     if abs(power) > options["max_abs_power_w"]:
         raise ValueError(f"Grid power {power} W exceeds safety sanity limit")
-    return power, imported, exported
+    return (power, imported, exported), block
 
 
-def obis(index: int, kind: int, amount: int) -> bytes:
+def obis(index: int, kind: int, amount: int, channel: int = 1) -> bytes:
     """kind 4 = instantaneous in 0.1 W; kind 8 = energy in Ws."""
     maxval = 0xFFFFFFFF if kind == 4 else 0xFFFFFFFFFFFFFFFF
     if kind not in (4, 8) or not 0 <= amount <= maxval:
         raise ValueError("Invalid OBIS value")
-    return struct.pack(">BBBB", 1, index, kind, 0) + struct.pack(
+    return struct.pack(">BBBB", channel, index, kind, 0) + struct.pack(
         ">I" if kind == 4 else ">Q", amount
     )
 
@@ -145,12 +150,72 @@ def build_frame(serial: int, susy: int, power_w: float,
         obis(2, 4, round(max(-power_w, 0.0) * 10)),
         obis(2, 8, round(exported_kwh * 3_600_000)),
     ))
-    payload = struct.pack(">HI", susy, serial) + struct.pack(">I", tick_ms & 0xFFFFFFFF) + payload
+    return wrap_frame(serial, susy, tick_ms, payload)
+
+
+def wrap_frame(serial: int, susy: int, tick_ms: int, payload: bytes) -> bytes:
+    payload = struct.pack(">HII", susy, serial, tick_ms & 0xFFFFFFFF) + payload
     header = b"SMA\x00" + struct.pack(">HHIHHH", 4, 0x02A0, 1, 2 + len(payload), 0x0010, 0x6069)
     return header + payload + b"\x00\x00\x00\x00"
 
 
+def build_emeter20(config: dict, values: tuple[float, float, float],
+                   block: list[int], tick_ms: int) -> bytes:
+    """Build the EMETER-20 profile verified with the Sunny Tripower."""
+    power, imported, exported = values
+    amounts = {
+        (1, 4): max(power, 0) * 10,
+        (2, 4): max(-power, 0) * 10,
+        (1, 8): imported * 3_600_000,
+        (2, 8): exported * 3_600_000,
+    }
+    frequency_sf = signed16(block[17])
+    if block[16] != 0xFFFF and -6 <= frequency_sf <= 6:
+        amounts[14, 4] = block[16] * 10 ** frequency_sf * 1000
+    sign = -1 if config["power_sign"] == "export_positive" else 1
+    power_scale = 10 ** signed16(block[22])
+    energy_scale = 10 ** signed16(block[54]) * 3600
+    for phase in range(3):
+        offset = 20 * (phase + 1)
+        if block[19 + phase] != 0x8000:
+            watts = signed16(block[19 + phase]) * power_scale * sign
+            amounts[offset + 1, 4] = max(watts, 0) * 10
+            amounts[offset + 2, 4] = max(-watts, 0) * 10
+        for direction, base in enumerate((46, 38), 1):
+            index = base + 2 * (phase + 1)
+            raw = _u32(*block[index:index + 2])
+            if raw != 0xFFFFFFFF:
+                counter = 3 - direction if config.get("swap_counters", False) else direction
+                amounts[offset + counter, 8] = raw * energy_scale
+
+    fields = []
+    for offset in (0, 20, 40, 60):
+        for index in (1, 2, 3, 4, 9, 10):
+            for kind in (4, 8):
+                fields.append((offset + index, kind))
+        fields.extend((offset + index, 4) for index in ((11, 12, 13) if offset else (13, 14)))
+    payload = b"".join(obis(index, kind, int(amounts.get((index, kind), 0)), 0)
+                       for index, kind in fields)
+    payload += bytes.fromhex("90000000 02030452")
+    return wrap_frame(config["meter_serial"], 349, tick_ms, payload)
+
+
+def read_sample(config: dict) -> tuple[tuple[float, float, float], list[int] | None]:
+    if config.get("frame_profile") == "emeter20":
+        return fetch_meter_sample(config)
+    return fetch_meter(config), None
+
+
+def encode_sample(config: dict, values: tuple[float, float, float],
+                  block: list[int] | None, tick_ms: int) -> bytes:
+    if block is not None:
+        return build_emeter20(config, values, block, tick_ms)
+    return build_frame(config["meter_serial"], config["susy_id"], *values, tick_ms)
+
+
 def validate(options: dict) -> None:
+    if options.get("frame_profile", "compact") not in ("compact", "emeter20"):
+        raise ValueError("Unsupported frame_profile")
     if options["power_sign"] not in ("import_positive", "export_positive"):
         raise ValueError("Unsupported sign convention")
     for key, lo, hi in (
@@ -186,23 +251,31 @@ def main() -> None:
     config = json.loads(args.options.read_text(encoding="utf-8"))
     validate(config)
     if args.check:
-        power, imported, exported = fetch_meter(config)
-        frame = build_frame(config["meter_serial"], config["susy_id"],
-                            power, imported, exported, 0)
+        values, block = read_sample(config)
+        power, imported, exported = values
+        frame = encode_sample(config, values, block, 0)
         print(json.dumps({"grid_power_w": power, "import_kwh": imported,
                           "export_kwh": exported, "speedwire_bytes": len(frame)}))
         return
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
-    interface = config.get("multicast_interface", "")
-    if interface:
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(interface))
     transmit = config["transmit_enabled"]
-    LOG.info("START source=Modbus TCP proxy (%s:%s, unit=%s, model_base=%s); TX=%s; serial=%s",
+    profile = config.get("frame_profile", "compact")
+    sock = None
+    if transmit:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+        interface = config.get("multicast_interface") or ""
+        if interface:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(interface))
+        if profile == "emeter20":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((interface, MULTICAST_PORT))
+    LOG.info("START source=Modbus TCP proxy (%s:%s, unit=%s, model_base=%s); "
+             "TX=%s; serial=%s; profile=%s",
              config["modbus_host"], config["modbus_port"], config["modbus_unit_id"],
              config["meter_model_base"], "ENABLED" if transmit else "DRY-RUN",
-             config["meter_serial"])
+             config["meter_serial"], profile)
     last_good: tuple[float, float, float] | None = None
+    last_block: list[int] | None = None
     last_good_at: float | None = None
     last_counters: tuple[float, float] | None = None
     next_poll = 0.0
@@ -212,12 +285,13 @@ def main() -> None:
         if now >= next_poll:
             next_poll = now + config["poll_interval_seconds"]
             try:
-                new = fetch_meter(config)
+                new, block = read_sample(config)
                 if last_counters is not None and (new[1] + 0.0001 < last_counters[0] or
                                                   new[2] + 0.0001 < last_counters[1]):
                     LOG.error("Counter decreased (reset/wrap); stopping for manual review")
                     return
                 last_good = new
+                last_block = block
                 last_good_at = time.monotonic()
                 last_counters = (new[1], new[2])
             except (ModbusError, ValueError, OSError, KeyError, OverflowError) as exc:
@@ -228,9 +302,9 @@ def main() -> None:
         if fresh:
             assert last_good is not None
             try:
-                frame = build_frame(config["meter_serial"], config["susy_id"],
-                                    *last_good, int(now * 1000))
-                if transmit:
+                tick = time.time() if last_block is not None else now
+                frame = encode_sample(config, last_good, last_block, int(tick * 1000))
+                if sock is not None:
                     sock.sendto(frame, (MULTICAST_GROUP, MULTICAST_PORT))
                 if now >= next_log:
                     power, inc, out = last_good

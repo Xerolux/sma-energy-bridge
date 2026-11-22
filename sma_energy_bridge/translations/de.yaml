@@ -32,6 +32,10 @@ configuration:
     description: >-
       Eindeutige 32-Bit-Seriennummer des emulierten SMA Energy Meters. Darf mit
       keinem realen SMA-Gerät im Netz kollidieren.
+  frame_profile:
+    name: Speedwire-Telegrammprofil
+    description: >-
+      emeter20 sendet 608 Bytes mit SUSy-ID 349 und UDP-Absenderport 9522. Die Option SUSy-ID gilt für das kompakte Profil.
   susy_id:
     name: SUSy-ID
     description: >-

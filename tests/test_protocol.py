@@ -1,11 +1,11 @@
 import importlib.util
 import json
-from pathlib import Path
 import socket
 import struct
-import threading
 import tempfile
+import threading
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 FILE = Path(__file__).resolve().parents[1] / 'sma_energy_bridge' / 'main.py'
@@ -15,6 +15,37 @@ spec.loader.exec_module(bridge)
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_emeter20_frame(self):
+        options = {"meter_serial": 900000001, "power_sign": "export_positive",
+                   "swap_counters": True}
+        block = [0] * 55
+        block[16:18] = [5000, 0xFFFE]
+        block[19:22] = [0xFF9C, 250, 0x8000]
+        block[41], block[49] = 1000, 2000
+        frame = bridge.build_emeter20(options, (100, 12.34, 56.78), block, 1234)
+        self.assertEqual(len(frame), 608)
+        expected_header = bytes.fromhex("534d4100 0004 02a0 00000001 024c 0010 6069 015d")
+        self.assertEqual(frame[:20], expected_header)
+        self.assertEqual(struct.unpack_from(">II", frame, 20), (900000001, 1234))
+        self.assertEqual(frame[-12:], bytes.fromhex("90000000 02030452 00000000"))
+        fields = {}
+        cursor = 28
+        while cursor < len(frame) - 12:
+            channel, index, size, tariff = frame[cursor:cursor + 4]
+            self.assertEqual((channel, tariff), (0, 0))
+            fields[index, size] = int.from_bytes(frame[cursor + 4:cursor + 4 + size], "big")
+            cursor += 4 + size
+        self.assertEqual(len(fields), 59)
+        self.assertEqual(fields[1, 4], 1000)
+        self.assertEqual(fields[1, 8], 44_424_000)
+        self.assertEqual(fields[2, 8], 204_408_000)
+        self.assertEqual(fields[14, 4], 50_000)
+        self.assertEqual(fields[21, 4], 1000)
+        self.assertEqual(fields[42, 4], 2500)
+        self.assertEqual(fields[61, 4], 0)
+        self.assertEqual(fields[21, 8], 3_600_000)
+        self.assertEqual(fields[22, 8], 7_200_000)
+
     def test_check_never_creates_multicast_socket(self):
         options = dict(power_sign="export_positive", poll_interval_seconds=5,
                        transmit_interval_seconds=1, stale_after_seconds=15,

@@ -57,7 +57,7 @@ class Canvas:
                 if y0 <= y < y1 or y1 <= y < y0:
                     crossings.append(x0 + (y - y0) * (x1 - x0) / (y1 - y0))
             crossings.sort()
-            for even, odd in zip(crossings[::2], crossings[1::2]):
+            for even, odd in zip(crossings[::2], crossings[1::2], strict=False):
                 self.rect(round(even), y, round(odd) + 1, y + 1, color)
 
     def png(self, path: Path) -> None:

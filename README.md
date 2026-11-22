@@ -4,7 +4,7 @@
 
 First supported source: read-only **SolarEdge SunSpec meter → Modbus TCP proxy → SMA Speedwire Energy Meter multicast**. German technical design and implementation: [KONZEPT_UND_UMSETZUNG.md](KONZEPT_UND_UMSETZUNG.md).
 
-⚠️ **Experimental, display/test only.** Compatibility with the real `STP8.0-3AV-40` has **not** been verified. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
+⚠️ **Experimental, display/test only.** Manual EMETER-20 assignment and live grid readings were verified on a `STP8.0-3AV-40`. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
 
 ## Configuration
 
@@ -67,8 +67,7 @@ HA_URL=http://ha.local:8123 HA_TOKEN=... python scripts/verify_against_ha.py \
     --ha-export-entity sensor.meter_1_eingespeiste_energie
 ```
 
-Hardware acceptance at the SMA receiver (roadmap 0.3.0) remains open; keep
-`transmit_enabled: false` until it is done on site.
+Keep `transmit_enabled: false` until the grid values and assignment have been verified on site.
 
 ## Tests
 
@@ -81,4 +80,18 @@ python scripts/make_icons.py   # regenerate icon.png / logo.png
 
 **Architecture:** The initial provider is SolarEdge SunSpec via an existing Modbus TCP proxy; other energy-meter providers are planned and not yet implemented.
 
-The app uses Modbus TCP function 03, validates the SunSpec meter ID and scale factors, and stops on a counter decrease. Hardware acceptance at the SMA receiver and counter rollover handling remain open.
+The app uses Modbus TCP function 03, validates the SunSpec meter ID and scale factors, and stops on a counter decrease. Counter rollover recovery requires manual review.
+
+## Sunny Tripower with EMETER-20
+
+Set `frame_profile: emeter20` in the app and configure a unique `meter_serial`.
+In the Sunny Tripower, select **SMA Energy Meter** as the energy meter in use
+under **System communication → Measured values**, then enter the same serial
+under **Meter on Speedwire**. The manual assignment was verified with a
+Sunny Tripower STP8.0-3AV-40 running firmware 4.10.10.R, including while powered
+on AC only. The list of available meters can remain empty.
+
+The 608-byte profile uses SUSy ID 349 and UDP source port 9522. It carries
+active power, active energy and grid frequency from SunSpec where available.
+Other fields in the compatibility profile are zero-filled. Keep transmission
+disabled during initial comparisons. Use this app for monitoring and testing.
