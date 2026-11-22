@@ -85,7 +85,8 @@ Keep `transmit_enabled: false` until the grid values and assignment have been ve
 python -m unittest discover -s tests -v
 python -m py_compile sma_energy_bridge/main.py scripts/verify_against_ha.py
 ruff check .        # pip install ruff
-python scripts/make_icons.py   # regenerate icon.png / logo.png
+python -m pip install Pillow==12.3.0   # optional artwork dependency
+python scripts/make_icons.py           # regenerate icon.png / logo.png
 ```
 
 **Architecture:** The source profile reads the meter. The frame profile selects the SMA telegram. SolarEdge uses read-only Modbus FC03 and validates the meter ID and scale factors. Custom maps can use read-only FC03 or FC04. A decrease in a total active energy counter stops the app for manual review.
