@@ -9,6 +9,13 @@ and testing only. Use an approved meter for mandatory export control.
 [Eigene Zählerprofile](https://xerolux.github.io/sma-energy-bridge/de/profile/) ·
 [Wiki](https://github.com/Xerolux/sma-energy-bridge/wiki)
 
+## Supported architectures / Unterstützte Architekturen
+
+| Home Assistant | English | Deutsch |
+|---|---|---|
+| `amd64` | 64-bit Intel and AMD systems | 64-Bit-Systeme mit Intel- oder AMD-Prozessor |
+| `aarch64` | 64-bit ARM systems, e.g. Raspberry Pi 4 or 5 with 64-bit Home Assistant OS | 64-Bit-ARM-Systeme, z. B. Raspberry Pi 4 oder 5 mit 64-Bit-Home-Assistant-OS |
+
 ## How it works
 
 1. The app polls the selected meter source every `poll_interval_seconds`.
