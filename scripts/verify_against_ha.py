@@ -1,7 +1,7 @@
 """Verify SMA Energy Bridge source values against live Home Assistant sensors.
 
 Reads the meter through the configured Modbus TCP proxy with the exact code
-path the app uses (``fetch_meter``) and, at the same moment, the corresponding
+path the app uses (``read_sample``) and, at the same moment, the corresponding
 Home Assistant reference sensors via the REST API. Reports a per-sample table
 and a PASS/FAIL summary for counters and power sign agreement.
 
@@ -32,7 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sma_energy_bridge"))
 
-from main import fetch_meter  # noqa: E402
+from main import read_sample  # noqa: E402
 
 
 def ha_state(base_url: str, token: str, entity_id: str) -> dict:
@@ -81,7 +81,7 @@ def main() -> int:
     worst_power = 0.0
     for index in range(args.samples):
         try:
-            power, imported, exported = fetch_meter(options)
+            (power, imported, exported), _ = read_sample(options)
         except Exception as exc:  # noqa: BLE001 - report and keep sampling
             print(f"[{index + 1}/{args.samples}] bridge read failed: {exc}")
             failures.append(f"bridge read: {exc}")

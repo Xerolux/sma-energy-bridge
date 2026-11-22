@@ -1,7 +1,7 @@
-"""SolarEdge SunSpec meter -> SMA Energy Meter Speedwire transmitter.
+"""Modbus TCP grid meter -> SMA Energy Meter Speedwire transmitter.
 
-Beta Home Assistant app for displaying meter data. The SolarEdge data source is a
-read-only Modbus TCP proxy. No values are written to Modbus or the SMA inverter.
+Beta Home Assistant app for displaying meter data from a read-only Modbus TCP
+source. No settings are written to the meter or the SMA inverter.
 Compatibility with an actual SMA inverter must be verified on site.
 """
 
@@ -24,6 +24,20 @@ MULTICAST_PORT = 9522
 # These are base-0 Modbus register addresses in SolarEdge's SunSpec technical note.
 DEFAULT_METER_BASE = 40188
 METER_TYPES = {201, 202, 203, 204}
+REGISTER_FORMATS = {
+    "int16": "h", "uint16": "H", "int32": "i", "uint32": "I",
+    "float32": "f", "int64": "q", "uint64": "Q", "float64": "d",
+}
+REQUIRED_METRICS = {"power", "import_wh", "export_wh"}
+PHASE_METRICS = REQUIRED_METRICS | {
+    "reactive_power", "apparent_power", "power_factor", "current", "voltage",
+    "reactive_import_varh", "reactive_export_varh", "apparent_import_vah", "apparent_export_vah",
+}
+METRICS = ((PHASE_METRICS - {"current", "voltage"}) | {"frequency"}
+           | {f"{metric}_l{phase}" for metric in PHASE_METRICS for phase in (1, 2, 3)})
+RegisterMapping = tuple[str, int, str, float, int, bool]
+MeterValues = tuple[float, float, float]
+MeterDetails = list[int] | dict[str, float] | None
 
 
 class ModbusError(Exception):
@@ -41,16 +55,19 @@ def _exact(sock: socket.socket, count: int) -> bytes:
 
 
 def read_holding_registers(host: str, port: int, unit_id: int, start: int,
-                           count: int, timeout: float = 3.0) -> list[int]:
-    """Read function 03 only, through an existing Modbus TCP proxy."""
+                           count: int, timeout: float = 3.0, *,
+                           function: int = 3) -> list[int]:
+    """Read Modbus TCP registers. Only function 03 and 04 are supported."""
     if not host or host == "REPLACE_ME" or not 1 <= port <= 65535:
         raise ValueError("Configure modbus_host and modbus_port")
     if not 0 <= unit_id <= 247 or not 0 <= start <= 65535:
         raise ValueError("Invalid Modbus unit ID or address")
     if not 1 <= count <= 125 or start + count > 65536:
         raise ValueError("Invalid register count")
+    if function not in (3, 4):
+        raise ValueError("Only Modbus functions 03 and 04 are supported")
     txid = (time.monotonic_ns() >> 10) & 0xFFFF
-    pdu = struct.pack(">BHH", 3, start, count)
+    pdu = struct.pack(">BHH", function, start, count)
     request = struct.pack(">HHHB", txid, 0, 1 + len(pdu), unit_id) + pdu
     with socket.create_connection((host, port), timeout=timeout) as sock:
         sock.settimeout(timeout)
@@ -62,10 +79,10 @@ def read_holding_registers(host: str, port: int, unit_id: int, start: int,
         if length < 3 or length > 253:
             raise ModbusError("Invalid Modbus PDU length")
         pdu_reply = _exact(sock, length - 1)
-    if pdu_reply[0] == 0x83:
+    if pdu_reply[0] == (function | 0x80):
         raise ModbusError(f"Modbus exception {pdu_reply[1] if len(pdu_reply)>1 else '?'}")
-    if pdu_reply[0] != 3 or len(pdu_reply) != 2 + count * 2 or pdu_reply[1] != count * 2:
-        raise ModbusError("Unexpected holding-register response")
+    if pdu_reply[0] != function or len(pdu_reply) != 2 + count * 2 or pdu_reply[1] != count * 2:
+        raise ModbusError("Unexpected register response")
     return list(struct.unpack(">" + "H" * count, pdu_reply[2:]))
 
 
@@ -124,6 +141,70 @@ def fetch_meter_sample(options: dict) -> tuple[tuple[float, float, float], list[
     if abs(power) > options["max_abs_power_w"]:
         raise ValueError(f"Grid power {power} W exceeds safety sanity limit")
     return (power, imported, exported), block
+
+
+def custom_mappings(config: dict) -> list[RegisterMapping]:
+    """Parse and validate the register list from the Home Assistant options."""
+    mappings = []
+    seen = set()
+    for line in config.get("custom_registers", []):
+        try:
+            metric, raw_address, data_type, raw_factor = map(str.strip, line.split(","))
+            swapped = data_type.endswith("_swapped")
+            code = REGISTER_FORMATS[data_type.removesuffix("_swapped")]
+            count = struct.calcsize(">" + code) // 2
+            address, factor = int(raw_address), float(raw_factor)
+            if (metric not in METRICS or metric in seen or not 0 <= address <= 65536 - count
+                    or not math.isfinite(factor) or factor == 0 or (swapped and count == 1)):
+                raise ValueError(f"Invalid or duplicate metric: {metric}")
+        except (ValueError, KeyError) as exc:
+            raise ValueError(f"Invalid custom register mapping: {line!r}") from exc
+        seen.add(metric)
+        mappings.append((metric, address, code, factor, count, swapped))
+    if missing := REQUIRED_METRICS - seen:
+        raise ValueError(f"Missing custom metrics: {', '.join(sorted(missing))}")
+    for phase in ("_l1", "_l2", "_l3"):
+        if "apparent_power" + phase in seen and "power" + phase not in seen:
+            raise ValueError(f"apparent_power{phase} needs power{phase} for direction")
+    return sorted(mappings, key=lambda item: item[1])
+
+
+def read_custom_sample(config: dict) -> tuple[MeterValues, dict[str, float]]:
+    mappings = custom_mappings(config)
+    blocks: list[tuple[int, int]] = []
+    for _, address, _, _, count, _ in mappings:
+        if (blocks and address <= blocks[-1][1]
+                and address + count - blocks[-1][0] <= 125):
+            start, end = blocks[-1]
+            blocks[-1] = (start, max(end, address + count))
+        else:
+            blocks.append((address, address + count))
+    registers = {}
+    for start, end in blocks:
+        block = read_holding_registers(
+            config["modbus_host"], config["modbus_port"], config["modbus_unit_id"],
+            start, end - start, function=config.get("custom_modbus_function", 3),
+        )
+        registers.update(enumerate(block, start))
+    values = {}
+    for metric, address, code, factor, count, swapped in mappings:
+        words = [registers[index] for index in range(address, address + count)]
+        if swapped:
+            words.reverse()
+        raw, = struct.unpack(">" + code, struct.pack(">" + "H" * count, *words))
+        value = raw * factor
+        base = metric.rsplit("_", 1)[0] if metric.endswith(("_l1", "_l2", "_l3")) else metric
+        if (not math.isfinite(value)
+                or (base == "power" and abs(value) > config["max_abs_power_w"])
+                or (base == "power_factor" and abs(value) > 100)
+                or (base not in {"power", "reactive_power", "power_factor"} and value < 0)):
+            raise ValueError(f"Invalid measurement for custom metric {metric}")
+        values[metric] = value
+    sign = -1 if config["power_sign"] == "export_positive" else 1
+    imported, exported = values["import_wh"], values["export_wh"]
+    if config.get("swap_counters", False):
+        imported, exported = exported, imported
+    return (sign * values["power"], imported / 1000, exported / 1000), values
 
 
 def obis(index: int, kind: int, amount: int, channel: int = 1) -> bytes:
@@ -216,6 +297,10 @@ def build_emeter20(config: dict, values: tuple[float, float, float],
                 counter = 3 - direction if config.get("swap_counters", False) else direction
                 amounts[offset + counter, 8] = raw * energy_scale
 
+    return pack_emeter20(config["meter_serial"], tick_ms, amounts)
+
+
+def pack_emeter20(serial: int, tick_ms: int, amounts: dict[tuple[int, int], float]) -> bytes:
     fields = []
     for offset in (0, 20, 40, 60):
         for index in (1, 2, 3, 4, 9, 10):
@@ -225,17 +310,53 @@ def build_emeter20(config: dict, values: tuple[float, float, float],
     payload = b"".join(obis(index, kind, int(amounts.get((index, kind), 0)), 0)
                        for index, kind in fields)
     payload += bytes.fromhex("90000000 02030452")
-    return wrap_frame(config["meter_serial"], 349, tick_ms, payload)
+    return wrap_frame(serial, 349, tick_ms, payload)
 
 
-def read_sample(config: dict) -> tuple[tuple[float, float, float], list[int] | None]:
+def build_custom_emeter20(config: dict, values: MeterValues,
+                         details: dict[str, float], tick_ms: int) -> bytes:
+    power, imported, exported = values
+    amounts = {
+        (1, 8): imported * 3_600_000, (2, 8): exported * 3_600_000,
+        (14, 4): details.get("frequency", 0) * 1000,
+    }
+    sign = -1 if config["power_sign"] == "export_positive" else 1
+    counters = (("export_wh", "import_wh") if config.get("swap_counters", False)
+                else ("import_wh", "export_wh"))
+    for phase in range(4):
+        offset = 20 * phase
+        suffix = f"_l{phase}" if phase else ""
+        watts = details.get("power" + suffix, 0) * sign if phase else power
+        reactive = details.get("reactive_power" + suffix, 0) * sign
+        amounts[offset + (1 if watts >= 0 else 2), 4] = abs(watts) * 10
+        amounts[offset + (3 if reactive >= 0 else 4), 4] = abs(reactive) * 10
+        if "power" + suffix in details:
+            apparent = details.get("apparent_power" + suffix, 0)
+            amounts[offset + (9 if watts >= 0 else 10), 4] = apparent * 10
+        amounts[offset + 13, 4] = abs(details.get("power_factor" + suffix, 0)) * 10
+        for index, metric in ((3, "reactive_import_varh"), (4, "reactive_export_varh"),
+                              (9, "apparent_import_vah"), (10, "apparent_export_vah")):
+            amounts[offset + index, 8] = details.get(metric + suffix, 0) * 3600
+        if phase:
+            for index, metric in enumerate(counters, 1):
+                amounts[offset + index, 8] = details.get(metric + suffix, 0) * 3600
+            amounts[offset + 11, 4] = details.get("current" + suffix, 0) * 1000
+            amounts[offset + 12, 4] = details.get("voltage" + suffix, 0) * 1000
+    return pack_emeter20(config["meter_serial"], tick_ms, amounts)
+
+
+def read_sample(config: dict) -> tuple[MeterValues, MeterDetails]:
+    if config.get("source_profile") == "custom_modbus":
+        values, details = read_custom_sample(config)
+        return values, details if config.get("frame_profile") == "emeter20" else None
     if config.get("frame_profile") == "emeter20":
         return fetch_meter_sample(config)
     return fetch_meter(config), None
 
 
-def encode_sample(config: dict, values: tuple[float, float, float],
-                  block: list[int] | None, tick_ms: int) -> bytes:
+def encode_sample(config: dict, values: MeterValues, block: MeterDetails, tick_ms: int) -> bytes:
+    if isinstance(block, dict):
+        return build_custom_emeter20(config, values, block, tick_ms)
     if block is not None:
         return build_emeter20(config, values, block, tick_ms)
     return build_frame(config["meter_serial"], config["susy_id"], *values, tick_ms)
@@ -266,8 +387,16 @@ def validate(options: dict) -> None:
         raise ValueError("Invalid meter_serial")
     if not 0 <= options["susy_id"] <= 0xFFFF:
         raise ValueError("Invalid susy_id")
-    if not 0 <= options["meter_model_base"] <= 65536 - 55:
-        raise ValueError("Invalid meter_model_base")
+    match options.get("source_profile", "solaredge_sunspec"):
+        case "solaredge_sunspec":
+            if not 0 <= options["meter_model_base"] <= 65536 - 55:
+                raise ValueError("Invalid meter_model_base")
+        case "custom_modbus":
+            if options.get("custom_modbus_function", 3) not in (3, 4):
+                raise ValueError("Custom Modbus function must be 3 or 4")
+            custom_mappings(options)
+        case _:
+            raise ValueError("Unsupported meter source profile")
 
 
 def main() -> None:
@@ -305,13 +434,14 @@ def main() -> None:
         if profile == "emeter20" or unicast_host:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((interface, MULTICAST_PORT))
-    LOG.info("START source=Modbus TCP proxy (%s:%s, unit=%s, model_base=%s); "
+    LOG.info("START source=%s (%s:%s, unit=%s); "
              "TX=%s; serial=%s; profile=%s; destination=%s:%s",
+             config.get("source_profile", "solaredge_sunspec"),
              config["modbus_host"], config["modbus_port"], config["modbus_unit_id"],
-             config["meter_model_base"], "ENABLED" if transmit else "DRY-RUN",
+             "ENABLED" if transmit else "DRY-RUN",
              config["meter_serial"], profile, *destination)
     last_good: tuple[float, float, float] | None = None
-    last_block: list[int] | None = None
+    last_block: MeterDetails = None
     last_good_at: float | None = None
     last_counters: tuple[float, float] | None = None
     next_poll = 0.0

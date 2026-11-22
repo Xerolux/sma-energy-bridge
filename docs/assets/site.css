@@ -1,0 +1,15 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0 auto; max-width: 69rem; padding: 0 clamp(1rem, 5vw, 4rem); }
+header, footer { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding-block: 1.4rem; }
+header { border-bottom: 1px solid color-mix(in srgb, currentColor 24%, transparent); }
+footer { border-top: 1px solid color-mix(in srgb, currentColor 24%, transparent); }
+nav { display: flex; flex-wrap: wrap; gap: 1rem; }
+.brand { margin-inline-end: auto; font-weight: 750; }
+main { max-width: 54rem; margin-block: 3.5rem; line-height: 1.65; }
+h1, h2 { line-height: 1.15; }
+h1 { font-size: clamp(2.1rem, 5vw, 3.8rem); letter-spacing: -.045em; }
+h2 { margin-block-start: 2.1rem; }
+a { color: light-dark(#075a5a, #7ce4d8); text-underline-offset: .16em; }
+pre { padding: 1rem; overflow: auto; background: light-dark(#edf5f3, #1e302f); border-radius: .5rem; }
+table { border-collapse: collapse; display: block; overflow: auto; }
+th, td { padding: .55rem .65rem; border-bottom: 1px solid color-mix(in srgb, currentColor 24%, transparent); text-align: start; }

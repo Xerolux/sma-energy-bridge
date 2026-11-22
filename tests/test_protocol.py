@@ -15,6 +15,44 @@ spec.loader.exec_module(bridge)
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_custom_profile_read_and_encode(self):
+        options = {
+            "source_profile": "custom_modbus", "frame_profile": "emeter20",
+            "modbus_host": "meter", "modbus_port": 502, "modbus_unit_id": 1,
+            "custom_modbus_function": 4, "power_sign": "import_positive",
+            "max_abs_power_w": 30000, "meter_serial": 900000001,
+            "custom_registers": [
+                "power, 0, int16, 0.1",
+                "import_wh, 1, uint32, 1",
+                "export_wh, 3, uint32_swapped, 1",
+                "voltage_l1, 5, float32, 1",
+                "reactive_export_varh_l1, 16, uint16, 1",
+            ],
+        }
+        with patch.object(bridge, "read_holding_registers", side_effect=[
+            [0xFF9C, 0, 2500, 1800, 0, 0x4366, 0], [12],
+        ]) as read:
+            values, details = bridge.read_sample(options)
+
+        self.assertEqual(values, (-10, 2.5, 1.8))
+        self.assertEqual(details["voltage_l1"], 230)
+        self.assertEqual(read.call_args_list[0].args, ("meter", 502, 1, 0, 7))
+        self.assertEqual(read.call_args_list[1].args, ("meter", 502, 1, 16, 1))
+        self.assertEqual(read.call_args.kwargs, {"function": 4})
+        frame = bridge.encode_sample(options, values, details, 1234)
+        self.assertEqual(len(frame), 608)
+        self.assertIn(bridge.obis(2, 4, 100, 0), frame)
+        self.assertIn(bridge.obis(24, 8, 43_200, 0), frame)
+        self.assertIn(bridge.obis(32, 4, 230_000, 0), frame)
+
+    def test_custom_profile_requires_all_totals_and_rejects_duplicate_metrics(self):
+        for registers, error in [
+            (["power, 0, int16, 1"], "Missing custom metrics: export_wh, import_wh"),
+            (["power, 0, int16, 1", "power, 1, int16, 1"], "Invalid custom register mapping"),
+        ]:
+            with self.subTest(registers=registers), self.assertRaisesRegex(ValueError, error):
+                bridge.custom_mappings({"custom_registers": registers})
+
     def test_emeter20_frame(self):
         options = {"meter_serial": 900000001, "power_sign": "export_positive",
                    "swap_counters": True}

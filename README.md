@@ -2,7 +2,9 @@
 
 [![Tests](https://github.com/Xerolux/sma-energy-bridge/actions/workflows/tests.yaml/badge.svg)](https://github.com/Xerolux/sma-energy-bridge/actions/workflows/tests.yaml)
 
-First supported source: read-only **SolarEdge SunSpec meter → Modbus TCP proxy → SMA Speedwire Energy Meter multicast**. German technical design and implementation: [KONZEPT_UND_UMSETZUNG.md](KONZEPT_UND_UMSETZUNG.md).
+[Website](https://xerolux.github.io/sma-energy-bridge/) · [Deutsch](https://xerolux.github.io/sma-energy-bridge/de/) · [Wiki](https://github.com/Xerolux/sma-energy-bridge/wiki) · [Sponsor](https://github.com/sponsors/Xerolux)
+
+Read a grid meter over Modbus TCP and forward its measurements as SMA Speedwire Energy Meter telegrams. Choose the built-in **SolarEdge SunSpec** profile or [configure a custom Modbus register map](https://xerolux.github.io/sma-energy-bridge/profiles/). The [German design document](KONZEPT_UND_UMSETZUNG.md) describes the original SolarEdge implementation.
 
 ⚠️ **Beta, display/test only.** Manual EMETER-20 assignment and live grid readings were verified on a `STP8.0-3AV-40`. Do not use for mandatory export control. The data source must be the complete *grid connection point meter*, not only inverter PV power.
 
@@ -12,6 +14,7 @@ Configure the existing proxy address and port in the Home Assistant app settings
 
 | Key | Example | Meaning |
 |---|---|---|
+| `source_profile` | `solaredge_sunspec` | built-in SolarEdge decoding or `custom_modbus` |
 | `modbus_host` | `192.168.x.x` | existing TCP proxy hostname/IP |
 | `modbus_port` | `502` | proxy listening port |
 | `modbus_unit_id` | `1` | SolarEdge unit ID behind proxy |
@@ -34,7 +37,7 @@ For a one-shot check outside Supervisor, save the options from `sma_energy_bridg
 python sma_energy_bridge/main.py --options options.json --check
 ```
 
-The command reads one holding-register block and prints grid power, import and export in kWh, and the generated frame size. It does not open a multicast socket.
+The command reads one sample and prints grid power, import and export in kWh, and the generated frame size. It does not open a Speedwire socket.
 
 ## Native Home Assistant Modbus
 
@@ -78,9 +81,7 @@ ruff check .        # pip install ruff
 python scripts/make_icons.py   # regenerate icon.png / logo.png
 ```
 
-**Architecture:** The initial provider is SolarEdge SunSpec via an existing Modbus TCP proxy; other energy-meter providers are planned and not yet implemented.
-
-The app uses Modbus TCP function 03, validates the SunSpec meter ID and scale factors, and stops on a counter decrease. Counter rollover recovery requires manual review.
+**Architecture:** The source profile reads the meter. The frame profile selects the SMA telegram. SolarEdge uses read-only Modbus FC03 and validates the meter ID and scale factors. Custom maps can use read-only FC03 or FC04. A decrease in a total active energy counter stops the app for manual review.
 
 ## Sunny Tripower with EMETER-20
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Keep SolarEdge SunSpec as the default meter profile and add user-defined Modbus TCP register maps.
+- Separate source profiles from the SMA telegram format. Custom maps support read-only Modbus FC03 and FC04, with optional phase measurements and reactive and apparent energy for EMETER-20.
+- Add project funding, a GitHub Pages site and bilingual Wiki guides.
+
 ## 0.3.6
 
 - Rename the Home Assistant app and repository to SMA Energy Bridge (Beta).

@@ -1,9 +1,19 @@
 configuration:
-  modbus_host:
-    name: Modbus-Proxy-Host
+  source_profile:
+    name: Zählerprofil
+    description: SolarEdge SunSpec oder eigene Modbus-Registerzuordnung.
+  custom_modbus_function:
+    name: Modbus-Lesefunktion für eigenes Profil
+    description: 3 für Holding Registers, 4 für Input Registers.
+  custom_registers:
+    name: Eigene Modbus-Register
     description: >-
-      Hostname oder IP des vorhandenen Modbus-TCP-Proxys vor dem Energiezähler.
-      Die App verbindet sich nie direkt mit dem Zähler.
+      Ein Eintrag je Wert im Format Messgröße, Adresse, Datentyp, Faktor.
+      Pflichtwerte sind power, import_wh und export_wh. Adressen ab 0.
+  modbus_host:
+    name: Modbus-TCP-Host
+    description: >-
+      Hostname oder IP des Modbus-TCP-Proxys oder des Modbus-TCP-Zählers.
   modbus_port:
     name: Modbus-Proxy-Port
     description: >-
@@ -11,7 +21,7 @@ configuration:
   modbus_unit_id:
     name: Modbus-Unit-ID
     description: >-
-      Modbus-Unit-ID des SolarEdge-Wechselrichters hinter dem Proxy, üblicherweise 1.
+      Modbus-Unit-ID des Geräts, bei SolarEdge üblicherweise 1.
   meter_model_base:
     name: SunSpec-Zähler-Basisadresse
     description: >-

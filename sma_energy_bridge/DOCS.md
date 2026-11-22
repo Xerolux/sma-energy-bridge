@@ -1,26 +1,29 @@
 # SMA Energy Bridge (Beta)
 
-Bridges an external grid-connection-point energy meter into the SMA Speedwire
-Energy Meter multicast protocol, so SMA devices can display meter data from a
-non-SMA source. First supported source: SolarEdge SunSpec meters, read
-strictly read-only (Modbus function 03) through an existing Modbus TCP proxy
-such as ModBridge. For display/testing only - never for mandatory export
-control. Full design, risks and test plan: [repository README] and
-`KONZEPT_UND_UMSETZUNG.md`.
+Reads an external grid-connection-point meter over Modbus TCP and sends SMA
+Speedwire Energy Meter telegrams. The built-in SolarEdge SunSpec profile uses
+read-only Modbus FC03. A custom register map can use FC03 or FC04. For display
+and testing only. Use an approved meter for mandatory export control.
+
+[Setup and supported profiles](https://xerolux.github.io/sma-energy-bridge/) ·
+[Eigene Zählerprofile](https://xerolux.github.io/sma-energy-bridge/de/profile/) ·
+[Wiki](https://github.com/Xerolux/sma-energy-bridge/wiki)
 
 ## How it works
 
-1. The app polls the SunSpec meter block (default base 40188) every
-   `poll_interval_seconds` and validates the meter DID (201..204), scale
-   factors, plausibility limits and counter monotonicity.
-2. It converts power and both energy counters to the SMA Energy Meter
-   Speedwire/OBIS telegram (multicast 239.12.255.254:9522, SUSy 270).
+1. The app polls the selected meter source every `poll_interval_seconds`.
+   SolarEdge SunSpec uses base 40188 by default and reads meter scale factors.
+2. It sends the last valid readings as an SMA Speedwire telegram every
+   `transmit_interval_seconds` until they are stale. Choose compact or EMETER-20
+   independently of the meter source. The destination can be multicast or
+   an SMA IPv4 address.
 3. With `transmit_enabled: false` (default) everything runs in dry-run mode:
    values are read, validated and logged, but no telegram leaves the host.
 
 ## Setup
 
-1. Configure the Modbus proxy host/port, unit ID and meter model base.
+1. Configure the Modbus TCP host, port, unit ID and source profile. Set
+   the meter model base for SolarEdge or add register mappings for Custom Modbus.
    The data source must be the complete grid connection point meter, not only
    inverter PV power.
 2. Keep `transmit_enabled: false` and start the app. The log prints

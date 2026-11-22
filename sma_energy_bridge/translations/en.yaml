@@ -1,9 +1,19 @@
 configuration:
-  modbus_host:
-    name: Modbus proxy host
+  source_profile:
+    name: Meter source profile
+    description: SolarEdge SunSpec or a user-defined Modbus register map.
+  custom_modbus_function:
+    name: Custom Modbus read function
+    description: 3 for holding registers or 4 for input registers.
+  custom_registers:
+    name: Custom Modbus registers
     description: >-
-      Hostname or IP of the existing Modbus TCP proxy in front of the energy
-      meter. The app never connects to the meter directly.
+      Enter one metric, address, data type, multiplier per item.
+      Required metrics are power, import_wh and export_wh. Use zero-based addresses.
+  modbus_host:
+    name: Modbus TCP host
+    description: >-
+      Hostname or IP of the Modbus TCP proxy or meter.
   modbus_port:
     name: Modbus proxy port
     description: >-
@@ -11,7 +21,7 @@ configuration:
   modbus_unit_id:
     name: Modbus unit ID
     description: >-
-      Modbus unit ID of the SolarEdge inverter behind the proxy, usually 1.
+      Modbus unit ID of the device, usually 1 for SolarEdge.
   meter_model_base:
     name: SunSpec meter model base
     description: >-

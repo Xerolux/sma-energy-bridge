@@ -1,0 +1,9 @@
+title: SMA Energy Bridge
+lang: en
+baseurl: /sma-energy-bridge
+markdown: kramdown
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
